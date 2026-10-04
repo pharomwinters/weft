@@ -175,7 +175,7 @@ Nothing in this spec depends on a mail server.
 | New user | An instance admin or a workspace owner creates an invitation link. Single-use, expires after 7 days. An owner's invitation joins the invitee to that workspace with a chosen role. The invitee sets a password and enrols TOTP. |
 | Forgotten password | An instance admin generates a reset link. Single-use, expires after 24 hours. Redeeming it sets a new password; the second factor is still required. |
 | Lost authenticator and recovery codes | An instance admin resets that user's second factor. The user re-enrols at next login. |
-| Admin locked out | `manage.py reset-2fa <email>` and `manage.py reset-password <email>` run on the server. Shell access to the host is the proof of ownership. |
+| Admin locked out | `manage.py reset_2fa <email>` and `manage.py reset_password <email>` run on the server. Shell access to the host is the proof of ownership. |
 
 Invitation and reset tokens are random, at least 256 bits, and stored hashed. Open sign-up does not exist in this release.
 
