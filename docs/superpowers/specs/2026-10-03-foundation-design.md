@@ -59,6 +59,18 @@ Docker Compose with two containers: `app` and `postgres`. The app container runs
 
 Minimum versions: Python 3.12, Django 5.2 LTS, Postgres 16, Node 22 (build only).
 
+### Tooling
+
+| Purpose | Tool |
+|---|---|
+| Python versions, dependencies and virtual environment | uv, with a committed `uv.lock` |
+| Python linting and formatting | Ruff |
+| Python type checking | ty |
+| Node dependencies | pnpm, with a committed `pnpm-lock.yaml` |
+| Frontend linting and type checking | ESLint, `tsc` |
+
+The Docker build and CI install from the lockfiles using these same tools, so local, CI and container environments match.
+
 ### Repository layout
 
 ```
@@ -300,7 +312,7 @@ Behaviour:
 - **Permissions:** every role against every action, checked against the table in section 6.
 - **Configuration:** startup refusal for missing and placeholder secrets.
 - **Frontend:** component tests for forms and guards (Vitest), and Playwright browser tests for setup, enrolment, login, invitation and workspace membership.
-- **CI:** on every push, runs backend and frontend tests, linting (ruff, eslint), type checks (mypy, tsc), and a check that the generated API types are up to date.
+- **CI:** on every push, runs backend and frontend tests, linting and format checks (Ruff, ESLint), type checks (ty, `tsc`), and a check that the generated API types are up to date.
 
 ## 12. Done when
 
