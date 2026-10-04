@@ -1,8 +1,7 @@
 import pytest
-from api.api import api
 from api.errors import ApiError, register_error_handlers
-from config.urls import api_not_found
-from django.urls import path, re_path
+from config import urls as config_urls
+from django.urls import path
 from ninja import NinjaAPI, Schema
 
 # Test-only routes live on a separate API instance served by a test URLconf, so
@@ -25,13 +24,8 @@ def validated(request, payload: Named):
     return {"name": payload.name}
 
 
-urlpatterns = [
-    path("api/v1/", test_api.urls),
-    path("api/v1/", api.urls),
-    re_path(r"^api/", api_not_found),
-]
-
-pytestmark = pytest.mark.urls(__name__)
+# The real URLconf with the test API mounted ahead of it.
+urlpatterns = [path("api/v1/", test_api.urls), *config_urls.urlpatterns]
 
 
 def test_health(api_client):
@@ -44,12 +38,14 @@ def test_unknown_api_route_is_json_404(api_client):
     assert r.json()["error"]["code"] == "not_found"
 
 
+@pytest.mark.urls(__name__)
 def test_api_error_shape(api_client):
     r = api_client.get("/_test/api-error")
     assert r.status_code == 409
     assert r.json() == {"error": {"code": "x", "message": "msg", "details": {"a": 1}}}
 
 
+@pytest.mark.urls(__name__)
 def test_validation_error_shape(api_client):
     r = api_client.post("/_test/validated", json={})
     assert r.status_code == 400 and r.json()["error"]["code"] == "validation"
