@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 import pytest
+from accounts.models import User
 from django.test import Client
 
 
@@ -39,3 +40,24 @@ class ApiClient:
 @pytest.fixture
 def api_client() -> ApiClient:
     return ApiClient()
+
+
+@pytest.fixture
+def make_user(db):
+    def _make(
+        email: str = "u@example.com",
+        password: str = "correct horse battery",
+        *,
+        admin: bool = False,
+        must_change: bool = False,
+        active: bool = True,
+    ) -> User:
+        return User.objects.create_user(
+            email,
+            password,
+            is_instance_admin=admin,
+            must_change_password=must_change,
+            is_active=active,
+        )
+
+    return _make
