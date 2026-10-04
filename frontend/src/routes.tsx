@@ -1,12 +1,19 @@
 import { Text, Title } from "@mantine/core";
 import { Route, Routes } from "react-router-dom";
 
+import EnrolPage from "./auth/EnrolPage";
+import ForcedPasswordPage from "./auth/ForcedPasswordPage";
 import {
   RequireAdmin,
   RequireAnonymous,
   RequirePartial,
   RequireVerified,
 } from "./auth/guards";
+import InvitationPage from "./auth/InvitationPage";
+import LoginPage from "./auth/LoginPage";
+import ResetPage from "./auth/ResetPage";
+import SetupPage from "./auth/SetupPage";
+import VerifyPage from "./auth/VerifyPage";
 import Shell from "./layout/Shell";
 
 /** Stands in for a screen until its task builds it. */
@@ -22,12 +29,12 @@ function Placeholder({ title }: { title: string }) {
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/setup" element={<Placeholder title="Setup" />} />
+      <Route path="/setup" element={<SetupPage />} />
       <Route
         path="/login"
         element={
           <RequireAnonymous>
-            <Placeholder title="Sign in" />
+            <LoginPage />
           </RequireAnonymous>
         }
       />
@@ -35,7 +42,7 @@ export default function AppRoutes() {
         path="/verify"
         element={
           <RequirePartial step="verify">
-            <Placeholder title="Verify" />
+            <VerifyPage />
           </RequirePartial>
         }
       />
@@ -43,7 +50,7 @@ export default function AppRoutes() {
         path="/enrol"
         element={
           <RequirePartial step="enrol">
-            <Placeholder title="Set up two-factor" />
+            <EnrolPage />
           </RequirePartial>
         }
       />
@@ -51,12 +58,12 @@ export default function AppRoutes() {
         path="/change-password"
         element={
           <RequirePartial step="change_password">
-            <Placeholder title="Change password" />
+            <ForcedPasswordPage />
           </RequirePartial>
         }
       />
-      <Route path="/invite/:token" element={<Placeholder title="Invitation" />} />
-      <Route path="/reset/:token" element={<Placeholder title="Reset password" />} />
+      <Route path="/invite/:token" element={<InvitationPage />} />
+      <Route path="/reset/:token" element={<ResetPage />} />
       <Route
         element={
           <RequireVerified>
