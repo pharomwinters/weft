@@ -14,6 +14,7 @@
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "e2e": "playwright test",
     "gen:api": "DJANGO_SETTINGS_MODULE=config.settings_test uv run --project .. python ../backend/manage.py export_openapi_schema --api api.api.api --indent 2 --output openapi.json && openapi-typescript openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
@@ -27,10 +28,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^22.20.5",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.1.1",
@@ -39,6 +42,7 @@
     "globals": "^17.13.0",
     "jsdom": "^30.1.1",
     "openapi-typescript": "^7.13.0",
+    "otpauth": "^9.5.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.71.0",
     "vite": "^8.3.2",
