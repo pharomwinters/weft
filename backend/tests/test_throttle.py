@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from accounts.models import IpFailure
 from accounts.net import client_ip
 from accounts.throttle import (
     ACCOUNT_LIMIT,
@@ -165,13 +166,71 @@ def test_ip_block_lifts_when_failures_leave_the_window(db, rf, time_machine):
     for n in range(IP_LIMIT):
         record_failure(req, f"user{n}@example.com")
     assert is_blocked(req, None)
+    time_machine.move_to("2026-10-03 12:14:59", tick=False)
+    assert is_blocked(req, None)
     time_machine.move_to("2026-10-03 12:15:01", tick=False)
     assert not is_blocked(req, None)
 
 
-def test_old_address_rows_are_pruned_on_write(db, req, time_machine):
-    from accounts.models import IpFailure
+def test_ip_block_lasts_15_minutes_from_the_crossing_failure(db, rf, time_machine):
+    req = rf.get("/", REMOTE_ADDR="203.0.113.9")
+    time_machine.move_to("2026-10-03 12:00:00", tick=False)
+    for _ in range(IP_LIMIT - 1):
+        record_failure(req, None)
+    time_machine.move_to("2026-10-03 12:14:59", tick=False)
+    record_failure(req, None)
+    time_machine.move_to("2026-10-03 12:29:58", tick=False)
+    assert is_blocked(req, None)
+    time_machine.move_to("2026-10-03 12:30:00", tick=False)
+    assert not is_blocked(req, None)
 
+
+def test_failures_during_an_ip_block_do_not_extend_it(db, rf, time_machine):
+    req = rf.get("/", REMOTE_ADDR="203.0.113.9")
+    time_machine.move_to("2026-10-03 12:00:00", tick=False)
+    for _ in range(IP_LIMIT):
+        record_failure(req, None)
+    time_machine.move_to("2026-10-03 12:10:00", tick=False)
+    record_failure(req, None)
+    assert IpFailure.objects.count() == IP_LIMIT
+    assert AuditEvent.objects.filter(event=events.LOGIN_FAILURE).count() == IP_LIMIT + 1
+    time_machine.move_to("2026-10-03 12:15:01", tick=False)
+    assert not is_blocked(req, None)
+
+
+def test_account_lock_lasts_full_window_across_addresses_and_agents(
+    db, rf, time_machine
+):
+    time_machine.move_to("2026-10-03 12:00:00", tick=False)
+    record_failure(
+        rf.get("/", REMOTE_ADDR="203.0.113.1", HTTP_USER_AGENT="ua-0"), EMAIL
+    )
+    time_machine.move_to("2026-10-03 12:14:00", tick=False)
+    for n in range(1, 5):
+        record_failure(
+            rf.get("/", REMOTE_ADDR=f"203.0.113.{n + 1}", HTTP_USER_AGENT=f"ua-{n}"),
+            EMAIL,
+        )
+    probe = rf.get("/", REMOTE_ADDR="198.51.100.1")
+    assert is_blocked(probe, EMAIL)
+    time_machine.move_to("2026-10-03 12:28:00", tick=False)
+    assert is_blocked(probe, EMAIL)
+    time_machine.move_to("2026-10-03 12:29:01", tick=False)
+    assert not is_blocked(probe, EMAIL)
+
+
+def test_overlong_email_counts_only_against_the_address(db, req):
+    long_email = "x" * 1000 + "@example.com"
+    record_failure(req, long_email)
+    assert AuditEvent.objects.filter(event=events.LOGIN_FAILURE).count() == 1
+    assert AuditEvent.objects.get(event=events.LOGIN_FAILURE).details == {}
+    assert IpFailure.objects.filter(ip="203.0.113.9").count() == 1
+    assert not is_blocked(req, long_email)
+    record_success(req, long_email)
+    reset_account(long_email)
+
+
+def test_old_address_rows_are_pruned_on_write(db, req, time_machine):
     time_machine.move_to("2026-10-03 12:00:00", tick=False)
     record_failure(req, None)
     time_machine.move_to("2026-10-04 12:00:01", tick=False)

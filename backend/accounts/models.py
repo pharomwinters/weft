@@ -56,3 +56,12 @@ class IpFailure(models.Model):
         indexes: ClassVar[list[models.Index]] = [
             models.Index(fields=["ip", "created"], name="accounts_ipfailure_ip_created")
         ]
+
+
+class IpBlock(models.Model):
+    """An address blocked until a fixed time, set when it crosses the limit."""
+
+    ip = models.CharField(max_length=45, unique=True)
+    blocked_until = models.DateTimeField()
+
+    objects = models.Manager["IpBlock"]()

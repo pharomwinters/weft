@@ -8,8 +8,9 @@ from django.contrib.auth.signals import user_login_failed
 from django.http import HttpRequest
 from django.utils import timezone
 
-from .models import IpFailure, normalize_email
+from .models import IpBlock, IpFailure, normalize_email
 from .net import client_ip
+from .passwords import MAX_EMAIL_LENGTH
 
 ACCOUNT_LIMIT = 5
 IP_LIMIT = 20
@@ -21,16 +22,30 @@ _PRUNE_AFTER = timedelta(days=1)
 
 
 def _axes_request(request: HttpRequest) -> HttpRequest:
-    """A throwaway request for axes, so its per-request caches never go stale.
+    """A throwaway request for axes.
 
-    axes stamps the attempt time and address onto the request the first time
-    it sees it; a long-lived request would keep an old time.
+    axes caches the attempt time on the request it sees, and keeps one row per
+    (username, address, user agent), each aging out on its own. A constant
+    address and no user agent make every failure of an account share one row,
+    so a lock always lasts the full window from the latest failure. The real
+    address is counted by IpFailure and written to the audit log.
     """
     fresh = HttpRequest()
-    fresh.META = dict(request.META)
+    fresh.META = {"REMOTE_ADDR": "127.0.0.1"}
     fresh.path = fresh.path_info = request.path
     fresh.method = request.method
     return fresh
+
+
+def _usable_email(email: str | None) -> str | None:
+    """The normalised email, or None when absent or too long to be one.
+
+    axes stores the username in a 255-character column.
+    """
+    if email is None:
+        return None
+    email = normalize_email(email)
+    return email if len(email) <= MAX_EMAIL_LENGTH else None
 
 
 def _credentials(email: str) -> dict:
@@ -41,21 +56,20 @@ def _account_locked(request: HttpRequest, email: str) -> bool:
     return AxesProxyHandler.is_locked(_axes_request(request), _credentials(email))
 
 
-def _ip_failures(ip: str) -> int:
-    return IpFailure.objects.filter(ip=ip, created__gte=timezone.now() - WINDOW).count()
+def _ip_blocked(ip: str) -> bool:
+    return IpBlock.objects.filter(ip=ip, blocked_until__gt=timezone.now()).exists()
 
 
 def is_blocked(request: HttpRequest, email: str | None) -> bool:
-    if _ip_failures(client_ip(request)) >= IP_LIMIT:
+    if _ip_blocked(client_ip(request)):
         return True
-    return email is not None and _account_locked(request, normalize_email(email))
+    email = _usable_email(email)
+    return email is not None and _account_locked(request, email)
 
 
 def record_failure(request: HttpRequest, email: str | None) -> None:
-    details: dict = {}
-    if email is not None:
-        email = normalize_email(email)
-        details["email"] = email
+    email = _usable_email(email)
+    details: dict = {} if email is None else {"email": email}
     record(events.LOGIN_FAILURE, request=request, details=details)
 
     if email is not None and not _account_locked(request, email):
@@ -68,11 +82,16 @@ def record_failure(request: HttpRequest, email: str | None) -> None:
             record(events.LOCKOUT, request=request, details={"scope": "account"})
 
     ip = client_ip(request)
-    before = _ip_failures(ip)
+    if _ip_blocked(ip):
+        return  # failures during a block neither count nor extend it
     now = timezone.now()
     IpFailure.objects.create(ip=ip, created=now)
     IpFailure.objects.filter(created__lt=now - _PRUNE_AFTER).delete()
-    if before < IP_LIMIT <= before + 1:
+    IpBlock.objects.filter(blocked_until__lt=now - _PRUNE_AFTER).delete()
+    if IpFailure.objects.filter(ip=ip, created__gte=now - WINDOW).count() >= IP_LIMIT:
+        IpBlock.objects.update_or_create(
+            ip=ip, defaults={"blocked_until": now + WINDOW}
+        )
         record(events.LOCKOUT, request=request, details={"scope": "ip"})
 
 
@@ -81,6 +100,6 @@ def record_success(request: HttpRequest, email: str) -> None:
 
 
 def reset_account(email: str) -> None:
-    email = normalize_email(email)
-    if email:  # axes treats an empty username as "every account"
-        AxesProxyHandler.reset_attempts(username=email)
+    usable = _usable_email(email)
+    if usable:  # axes treats an empty username as "every account"
+        AxesProxyHandler.reset_attempts(username=usable)
