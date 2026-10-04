@@ -1,0 +1,16 @@
+.git
+.venv
+.env
+.env.*
+!.env.example
+.superpowers
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/node_modules
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+frontend/e2e/.bootstrap.log
+frontend/e2e/.state.json
+docs

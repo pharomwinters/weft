@@ -93,7 +93,7 @@ scripts/e2e-server.sh
   - `GET /api/v1/health` → `{"status": "ok"}`
   - Fixture `api_client` in `backend/tests/conftest.py`: object with `get/post/patch/put/delete(path, json=None)` that prefixes `/api/v1`, sends JSON, and returns Django's test response
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # backend/tests/test_config.py
@@ -152,9 +152,9 @@ def test_django_tables_live_in_platform_schema(db):
     # query information_schema.tables for 'django_migrations'; assert table_schema == 'platform'
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest -q` → collection errors (modules missing).
+- [x] **Step 2: Run to verify they fail** — `uv run pytest -q` → collection errors (modules missing).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
   - Root `pyproject.toml`: add a `[project]` table (`requires-python = ">=3.12"`, dependencies from Tech Stack) and a dev dependency group (pytest, pytest-django, time-machine, ruff, ty). Add `[tool.pytest.ini_options]` with `DJANGO_SETTINGS_MODULE = "config.settings_test"`, `pythonpath = ["backend"]`, `testpaths = ["backend/tests"]`. Set `[tool.ty.environment] root = ["backend"]`. Leave `select`, `ignore`, `line-length`, the format `exclude`, `python-version` and `error-on-warning` unchanged. Rewrite the comments that describe another project (`reindex.py`, `vaultlib`, the vault, hit counts) so they describe this one; keep the reasoning for pinning `select` and ignoring `E501`.
   - `compose.dev.yml`: `postgres:16`, port 5432, user/password/db all `app`.
   - `.env.example`: all variables from spec section 8; required ones set to obvious placeholders (`SECRET_KEY=change-me`, etc.); a comment gives the command that generates a Fernet key.
@@ -164,8 +164,8 @@ def test_django_tables_live_in_platform_schema(db):
   - `api/errors.py`: exception handlers on `api` mapping `ApiError`, Ninja's validation error (→ 400 `validation`, `details` keyed by field name), `Http404` (→ `not_found`). `config/urls.py` returns the JSON 404 for any unmatched `/api/` path.
   - `config/middleware.py`: sets `Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'` and `Referrer-Policy: no-referrer`.
 
-- [ ] **Step 4: Run to verify they pass** — `uv run pytest -q` → all pass.
-- [ ] **Step 5: Commit** — `git commit -m "feat: backend skeleton, config validation, error shape"`
+- [x] **Step 4: Run to verify they pass** — `uv run pytest -q` → all pass.
+- [x] **Step 5: Commit** — `git commit -m "feat: backend skeleton, config validation, error shape"`
 
 ---
 
@@ -184,7 +184,7 @@ def test_django_tables_live_in_platform_schema(db):
   - `accounts.passwords.MAX_PASSWORD_LENGTH = 1024`, `MAX_EMAIL_LENGTH = 254`
   - Fixture `make_user(email="u@example.com", password="correct horse battery", *, admin=False, must_change=False, active=True) -> User`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_email_normalised_on_create(db):
@@ -206,10 +206,10 @@ def test_production_hasher_is_argon2():
     assert prod_settings.PASSWORD_HASHERS[0].endswith("Argon2PasswordHasher")
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_users.py -q`
-- [ ] **Step 3: Implement** the model, manager and `validate_new_password`. Uniqueness is a `UniqueConstraint(Lower("email"))`. Validators: minimum length 12, Django's `CommonPasswordValidator`, `UserAttributeSimilarityValidator` on `email`, and the length ceiling checked first.
-- [ ] **Step 4: Run to verify they pass**
-- [ ] **Step 5: Commit** — `git commit -m "feat: user model and password rules"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_users.py -q`
+- [x] **Step 3: Implement** the model, manager and `validate_new_password`. Uniqueness is a `UniqueConstraint(Lower("email"))`. Validators: minimum length 12, Django's `CommonPasswordValidator`, `UserAttributeSimilarityValidator` on `email`, and the length ceiling checked first.
+- [x] **Step 4: Run to verify they pass**
+- [x] **Step 5: Commit** — `git commit -m "feat: user model and password rules"`
 
 ---
 
@@ -226,7 +226,7 @@ def test_production_hasher_is_argon2():
   - `audit.service.record(event: str, *, request=None, actor: User | None = None, target: Model | None = None, details: dict | None = None) -> AuditEvent`
   - `audit.service.FORBIDDEN_DETAIL_KEYS = {"password", "new_password", "code", "token", "secret"}`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_record_stores_actor_target_ip(db, make_user, rf):
@@ -242,10 +242,10 @@ def test_events_are_append_only(db):
 def test_event_survives_actor_deletion(db, make_user):   # actor becomes None, row remains
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_audit.py -q`
-- [ ] **Step 3: Implement.** `target_type` is the model's lower-case class name.
-- [ ] **Step 4: Run to verify they pass**
-- [ ] **Step 5: Commit** — `git commit -m "feat: audit log"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_audit.py -q`
+- [x] **Step 3: Implement.** `target_type` is the model's lower-case class name.
+- [x] **Step 4: Run to verify they pass**
+- [x] **Step 5: Commit** — `git commit -m "feat: audit log"`
 
 ---
 
@@ -265,7 +265,7 @@ def test_event_survives_actor_deletion(db, make_user):   # actor becomes None, r
   - `accounts.throttle.reset_account(email: str) -> None`
   - Constants: `ACCOUNT_LIMIT = 5`, `IP_LIMIT = 20`, `WINDOW = timedelta(minutes=15)`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_forwarded_header_ignored_when_no_trusted_proxy(rf, settings):
@@ -298,13 +298,13 @@ def test_rotating_forwarded_header_does_not_dodge_ip_block(db, rf, settings):   
 def test_lockout_recorded_once_in_audit(db, req):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_throttle.py -q`
-- [ ] **Step 3: Implement**
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_throttle.py -q`
+- [x] **Step 3: Implement**
   - `client_ip`: with a count of `n > 0`, take the `n`-th entry from the right of `X-Forwarded-For`; anything unparseable falls back to `REMOTE_ADDR`.
   - Per-account lockout uses django-axes: `AXES_FAILURE_LIMIT = 5`, `AXES_COOLOFF_TIME = timedelta(minutes=15)`, `AXES_LOCKOUT_PARAMETERS = ["username"]`, `AXES_CLIENT_IP_CALLABLE = "accounts.net.client_ip"`, axes backend first in `AUTHENTICATION_BACKENDS`, axes middleware installed. `throttle` is the only module that imports axes; it normalises the email before every call and drives axes through its handler so that code-step failures (Task 6) count too.
   - Per-IP blocking is our own: `IpFailure(ip, created)` rows, blocked when 20 or more fall inside the last 15 minutes. Rows older than a day are deleted opportunistically on write.
-- [ ] **Step 4: Run to verify they pass**
-- [ ] **Step 5: Commit** — `git commit -m "feat: client address resolution and login throttling"`
+- [x] **Step 4: Run to verify they pass**
+- [x] **Step 5: Commit** — `git commit -m "feat: client address resolution and login throttling"`
 
 ---
 
@@ -331,7 +331,7 @@ def test_lockout_recorded_once_in_audit(db, req):
     - `POST /auth/logout` (partial) → 204, flushes the session
   - Fixture `partial_client(user) -> api_client` logged in through the password step
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # backend/tests/test_login.py
@@ -370,10 +370,10 @@ def test_access_lists_contain_no_stale_entries():      # every listed pair exist
 def test_health_is_listed_anonymous():
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_login.py backend/tests/test_deny_by_default.py -q`
-- [ ] **Step 3: Implement.** Login checks `is_blocked` first, then authenticates; on an unknown email it hashes a dummy password so timing is comparable. The partial state lives in the session under one key holding `user_id`, `started` and `second_factor_ok`; Django's `login()` is called only by `promote_if_ready`.
-- [ ] **Step 4: Run to verify they pass**
-- [ ] **Step 5: Commit** — `git commit -m "feat: session states, login, deny-by-default route guard"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_login.py backend/tests/test_deny_by_default.py -q`
+- [x] **Step 3: Implement.** Login checks `is_blocked` first, then authenticates; on an unknown email it hashes a dummy password so timing is comparable. The partial state lives in the session under one key holding `user_id`, `started` and `second_factor_ok`; Django's `login()` is called only by `promote_if_ready`.
+- [x] **Step 4: Run to verify they pass**
+- [x] **Step 5: Commit** — `git commit -m "feat: session states, login, deny-by-default route guard"`
 
 ---
 
@@ -405,7 +405,7 @@ def test_health_is_listed_anonymous():
     - `POST /auth/recovery` `{code}` → same as verify
   - Fixtures: `code_for(user) -> str` (current valid code), `enrolled(user) -> User` (confirmed device, created directly), `verified_client(user) -> api_client` (through the real login and verify endpoints). The tests below also name `enrolled_user`, `partial_enrolled_client` and `code_for_pending`; define those in `backend/tests/test_totp.py` from these three.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_secret_is_not_stored_in_plaintext(db, make_user):
@@ -438,10 +438,10 @@ def test_verified_session_of_deactivated_user_is_refused(verified_client, user):
     assert verified_client.get("/auth/session").json()["state"] == "anonymous"
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_totp.py -q`
-- [ ] **Step 3: Implement.** Use `django_otp.oath.TOTP` (30-second step, 6 digits) for the algorithm only; our own models hold the state. Secrets are 20 random bytes, encrypted with Fernet using the configured key. Codes are normalised by stripping spaces and dashes before any check. Recovery codes are hashed with SHA-256 after normalising to lower case without dashes (80 bits of entropy makes a slow hash unnecessary). `throttle.record_success` is called only when the session becomes verified. Extend `backend/tests/test_deny_by_default.py` coverage by adding the four endpoints to `PARTIAL`.
-- [ ] **Step 4: Run to verify they pass** — also rerun `backend/tests/test_login.py backend/tests/test_deny_by_default.py`.
-- [ ] **Step 5: Commit** — `git commit -m "feat: enforced TOTP with recovery codes"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_totp.py -q`
+- [x] **Step 3: Implement.** Use `django_otp.oath.TOTP` (30-second step, 6 digits) for the algorithm only; our own models hold the state. Secrets are 20 random bytes, encrypted with Fernet using the configured key. Codes are normalised by stripping spaces and dashes before any check. Recovery codes are hashed with SHA-256 after normalising to lower case without dashes (80 bits of entropy makes a slow hash unnecessary). `throttle.record_success` is called only when the session becomes verified. Extend `backend/tests/test_deny_by_default.py` coverage by adding the four endpoints to `PARTIAL`.
+- [x] **Step 4: Run to verify they pass** — also rerun `backend/tests/test_login.py backend/tests/test_deny_by_default.py`.
+- [x] **Step 5: Commit** — `git commit -m "feat: enforced TOTP with recovery codes"`
 
 ---
 
@@ -463,7 +463,7 @@ def test_verified_session_of_deactivated_user_is_refused(verified_client, user):
   - `POST /account/2fa/reenrol/confirm` `{code}` → `{"recovery_codes": [...]}`
   - `accounts.sessions.touch(request)` — middleware-called; updates `UserSession.last_seen` at most once a minute
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_forced_change_comes_after_second_factor(make_user, ...):
@@ -482,10 +482,10 @@ def test_old_device_keeps_working_until_reenrol_confirmed(...):
 def test_last_seen_updates_at_most_once_a_minute(...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_account.py -q`
-- [ ] **Step 3: Implement.** Every password change records `PASSWORD_CHANGED` and calls `end_sessions(user, except_key=current)`. Re-enrolment failures count toward the account lockout.
-- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
-- [ ] **Step 5: Commit** — `git commit -m "feat: forced password change and account settings"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_account.py -q`
+- [x] **Step 3: Implement.** Every password change records `PASSWORD_CHANGED` and calls `end_sessions(user, except_key=current)`. Re-enrolment failures count toward the account lockout.
+- [x] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
+- [x] **Step 5: Commit** — `git commit -m "feat: forced password change and account settings"`
 
 ---
 
@@ -504,7 +504,7 @@ def test_last_seen_updates_at_most_once_a_minute(...):
   - `GET /setup/status` (anonymous) → `{"needs_setup": true}`; 404 once an admin exists
   - `POST /setup/admin` (anonymous) `{token, email, password}` → 201 `{"next": "enrol"}`, starts a partial session; 401 `invalid_token`; 404 once an admin exists
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_env_route_creates_admin_who_must_change_password(db, cfg):
@@ -530,10 +530,10 @@ def test_wrong_tokens_count_toward_ip_block(...):             # 20 bad tokens �
 def test_two_simultaneous_setups_create_one_admin(transactional_db, ...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_setup.py -q`
-- [ ] **Step 3: Implement.** `SetupToken` holds a single row. Creating the admin locks that row inside a transaction and deletes it on success, which serialises concurrent attempts.
-- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
-- [ ] **Step 5: Commit** — `git commit -m "feat: first-run setup by env admin or setup token"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_setup.py -q`
+- [x] **Step 3: Implement.** `SetupToken` holds a single row. Creating the admin locks that row inside a transaction and deletes it on success, which serialises concurrent attempts.
+- [x] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
+- [x] **Step 5: Commit** — `git commit -m "feat: first-run setup by env admin or setup token"`
 
 ---
 
@@ -558,7 +558,7 @@ def test_two_simultaneous_setups_create_one_admin(transactional_db, ...):
   - Endpoints: `GET /workspaces` (`?deleted=true` lists restorable ones the caller may restore), `POST /workspaces` `{name}`, `GET|PATCH|DELETE /workspaces/{id}`, `POST /workspaces/{id}/restore`, `GET /workspaces/{id}/members`, `POST /workspaces/{id}/members` `{email, role}` (404 `user_not_found` for an unknown email), `PATCH|DELETE /workspaces/{id}/members/{user_id}`
   - Workspace JSON: `{"id", "name", "role": str|null, "deleted_at": str|null}` — `role` is the caller's membership role, null for an admin who is not a member
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # backend/tests/test_permissions.py — the spec's table, exhaustively
@@ -594,10 +594,10 @@ def test_admin_who_is_not_a_member_can_manage_and_sees_role_null(...):
 def test_membership_and_workspace_changes_are_audited(...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_permissions.py backend/tests/test_workspaces.py -q`
-- [ ] **Step 3: Implement.** Owner-count checks run inside a transaction that locks the workspace row with `select_for_update`. A soft-deleted workspace is invisible to every action except `WORKSPACE_RESTORE`.
-- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
-- [ ] **Step 5: Commit** — `git commit -m "feat: permissions, workspaces and memberships"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_permissions.py backend/tests/test_workspaces.py -q`
+- [x] **Step 3: Implement.** Owner-count checks run inside a transaction that locks the workspace row with `select_for_update`. A soft-deleted workspace is invisible to every action except `WORKSPACE_RESTORE`.
+- [x] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
+- [x] **Step 5: Commit** — `git commit -m "feat: permissions, workspaces and memberships"`
 
 ---
 
@@ -619,7 +619,7 @@ def test_membership_and_workspace_changes_are_audited(...):
   - `POST /invitations/token/{token}/accept` (anonymous) `{email, password}` → 201 `{"next": "enrol"}`; 409 `email_taken`
   - Unknown, used, expired and revoked tokens all return the identical 404 `invalid_token`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_admin_creates_instance_invitation(...): def test_owner_creates_workspace_invitation(...):
@@ -638,10 +638,10 @@ def test_bad_tokens_count_toward_ip_block(...):
 def test_invitation_to_deleted_workspace_is_invalid(...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_invitations.py -q`
-- [ ] **Step 3: Implement.** Acceptance locks the invitation row, so a token is consumed exactly once.
-- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
-- [ ] **Step 5: Commit** — `git commit -m "feat: invitations"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_invitations.py -q`
+- [x] **Step 3: Implement.** Acceptance locks the invitation row, so a token is consumed exactly once.
+- [x] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
+- [x] **Step 5: Commit** — `git commit -m "feat: invitations"`
 
 ---
 
@@ -665,7 +665,7 @@ def test_invitation_to_deleted_workspace_is_invalid(...):
   - `GET /admin/audit` `?event=&actor_id=&before=<id>&limit=` (default 50, max 200) → `{"items": [{"id", "time", "event", "actor_email", "target_type", "target_id", "ip", "details"}], "next_before": int|null}`, newest first
   - `manage.py reset_2fa <email>` and `manage.py reset_password <email>` (prints a reset URL); both exit non-zero with a message for an unknown email
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # backend/tests/test_admin_users.py
@@ -694,10 +694,10 @@ def test_no_secret_material_in_any_audit_row_after_full_flow(...):
     # used in the flow appears in json.dumps of all AuditEvent.details
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_admin_users.py backend/tests/test_recovery_paths.py backend/tests/test_admin_audit.py -q`
-- [ ] **Step 3: Implement.** Last-admin checks lock the admin rows in a transaction, as the last-owner check does.
-- [ ] **Step 4: Run to verify they pass** — then the whole suite: `uv run pytest -q`.
-- [ ] **Step 5: Commit** — `git commit -m "feat: admin user management, recovery paths, audit view"`
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_admin_users.py backend/tests/test_recovery_paths.py backend/tests/test_admin_audit.py -q`
+- [x] **Step 3: Implement.** Last-admin checks lock the admin rows in a transaction, as the last-owner check does.
+- [x] **Step 4: Run to verify they pass** — then the whole suite: `uv run pytest -q`.
+- [x] **Step 5: Commit** — `git commit -m "feat: admin user management, recovery paths, audit view"`
 
 ---
 
@@ -715,7 +715,7 @@ def test_no_secret_material_in_any_audit_row_after_full_flow(...):
   - `auth/guards.tsx`: `<RequireVerified>`, `<RequirePartial step>`, `<RequireAdmin>`; `pathForStep(next: string|null) -> string` mapping `login→/login`, `verify→/verify`, `enrol→/enrol`, `change_password→/change-password`, `null→/`
   - Route paths: `/setup`, `/login`, `/verify`, `/enrol`, `/change-password`, `/invite/:token`, `/reset/:token`, `/` (workspace list), `/workspaces/:id`, `/account`, `/admin/users`, `/admin/invitations`, `/admin/audit`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // api/client.test.ts
@@ -733,10 +733,10 @@ it("RequireAdmin shows a not-permitted message to a non-admin")
 it("a 401 from any request refreshes the session and redirects by details.next")
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `pnpm test`
-- [ ] **Step 3: Implement.** Mantine for components, TanStack Query for server state, React Router for routing. `Shell` shows navigation, the signed-in email, admin links only for admins, and a sign-out button. Pages for the routes above are placeholders until Tasks 13 and 14.
-- [ ] **Step 4: Run to verify they pass** — `pnpm test && pnpm lint && pnpm typecheck && pnpm build`
-- [ ] **Step 5: Commit** — `git commit -m "feat: frontend skeleton, typed API client, route guards"`
+- [x] **Step 2: Run to verify they fail** — `pnpm test`
+- [x] **Step 3: Implement.** Mantine for components, TanStack Query for server state, React Router for routing. `Shell` shows navigation, the signed-in email, admin links only for admins, and a sign-out button. Pages for the routes above are placeholders until Tasks 13 and 14.
+- [x] **Step 4: Run to verify they pass** — `pnpm test && pnpm lint && pnpm typecheck && pnpm build`
+- [x] **Step 5: Commit** — `git commit -m "feat: frontend skeleton, typed API client, route guards"`
 
 ---
 
@@ -750,7 +750,7 @@ it("a 401 from any request refreshes the session and redirects by details.next")
 - Consumes: `request`, `ApiFailure`, `useSession`, `pathForStep`; endpoints from Tasks 5–8, 10, 11
 - Produces: the eight pages, each default-exported and mounted at its route from Task 12
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // SetupPage: it("redirects to /login when /setup/status is 404")
@@ -771,10 +771,10 @@ it("a 401 from any request refreshes the session and redirects by details.next")
 //                 it("shows a single 'no longer valid' message for invalid_token")
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `pnpm test src/auth`
-- [ ] **Step 3: Implement.** The QR code is rendered in the browser from `otpauth_uri` with `qrcode.react`. Recovery codes are held in component state only and are gone after navigation.
-- [ ] **Step 4: Run to verify they pass** — `pnpm test && pnpm lint && pnpm typecheck`
-- [ ] **Step 5: Commit** — `git commit -m "feat: authentication screens"`
+- [x] **Step 2: Run to verify they fail** — `pnpm test src/auth`
+- [x] **Step 3: Implement.** The QR code is rendered in the browser from `otpauth_uri` with `qrcode.react`. Recovery codes are held in component state only and are gone after navigation.
+- [x] **Step 4: Run to verify they pass** — `pnpm test && pnpm lint && pnpm typecheck`
+- [x] **Step 5: Commit** — `git commit -m "feat: authentication screens"`
 
 ---
 
@@ -787,7 +787,7 @@ it("a 401 from any request refreshes the session and redirects by details.next")
 **Interfaces:**
 - Consumes: endpoints from Tasks 7, 9, 10, 11; guards from Task 12
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 // WorkspaceListPage: it("lists workspaces and creates one by name")
@@ -804,10 +804,10 @@ it("a 401 from any request refreshes the session and redirects by details.next")
 // AuditLogPage: it("filters by event type and loads older entries with next_before")
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `pnpm test`
-- [ ] **Step 3: Implement.** Destructive actions use a confirmation dialog. Controls are hidden by the `role` and `is_instance_admin` values the API returns; the server remains the authority.
-- [ ] **Step 4: Run to verify they pass** — `pnpm test && pnpm lint && pnpm typecheck && pnpm build`
-- [ ] **Step 5: Commit** — `git commit -m "feat: workspace, account and admin screens"`
+- [x] **Step 2: Run to verify they fail** — `pnpm test`
+- [x] **Step 3: Implement.** Destructive actions use a confirmation dialog. Controls are hidden by the `role` and `is_instance_admin` values the API returns; the server remains the authority.
+- [x] **Step 4: Run to verify they pass** — `pnpm test && pnpm lint && pnpm typecheck && pnpm build`
+- [x] **Step 5: Commit** — `git commit -m "feat: workspace, account and admin screens"`
 
 ---
 
@@ -825,7 +825,7 @@ it("a 401 from any request refreshes the session and redirects by details.next")
   - `docker compose up` starts `postgres` (named volume, healthcheck) and `app` (port 8000, healthcheck on `/api/v1/health`, depends on a healthy postgres)
   - `entrypoint.sh`: from `backend/`, `python manage.py bootstrap` then `uvicorn config.asgi:application --host 0.0.0.0 --port 8000`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_spa_route_serves_index(client, settings, tmp_path):   # dist with index.html → GET /login is 200 HTML
@@ -834,13 +834,13 @@ def test_index_is_not_cached_but_hashed_assets_are(...):       # Cache-Control: 
 def test_missing_dist_gives_clear_503(client, settings):       # not a stack trace
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_spa.py -q`
-- [ ] **Step 3: Implement.** Multi-stage Dockerfile: a Node stage runs `pnpm install --frozen-lockfile && pnpm build`; the final stage uses a uv base image, `uv sync --frozen --no-dev`, copies the built frontend, runs as a non-root user, and sets `DJANGO_SETTINGS_MODULE=config.settings`. README covers: what the project is, quick start (`cp .env.example .env`, generate the three secrets, `docker compose up`), both first-run routes and where the setup token appears (`docker compose logs app`), the `TRUSTED_PROXY_COUNT` setting with a Tailscale Funnel example, the three recovery paths and their commands, and local development.
-- [ ] **Step 4: Verify**
+- [x] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_spa.py -q`
+- [x] **Step 3: Implement.** Multi-stage Dockerfile: a Node stage runs `pnpm install --frozen-lockfile && pnpm build`; the final stage uses a uv base image, `uv sync --frozen --no-dev`, copies the built frontend, runs as a non-root user, and sets `DJANGO_SETTINGS_MODULE=config.settings`. README covers: what the project is, quick start (`cp .env.example .env`, generate the three secrets, `docker compose up`), both first-run routes and where the setup token appears (`docker compose logs app`), the `TRUSTED_PROXY_COUNT` setting with a Tailscale Funnel example, the three recovery paths and their commands, and local development.
+- [x] **Step 4: Verify**
   - `uv run pytest -q` → pass
   - `docker compose up --build -d`, then `curl -s localhost:8000/api/v1/health` → `{"status": "ok"}`, and `docker compose logs app | grep "Setup token:"` → one line
   - With `SECRET_KEY=change-me` in `.env`: the app container exits and its log names `SECRET_KEY`
-- [ ] **Step 5: Commit** — `git commit -m "feat: container image, compose stack, README"`
+- [x] **Step 5: Commit** — `git commit -m "feat: container image, compose stack, README"`
 
 ---
 
@@ -857,7 +857,7 @@ def test_missing_dist_gives_clear_503(client, settings):       # not a stack tra
   - `e2e/helpers.ts`: `setupToken() -> string` (reads the log), `totp(secret: string) -> string`, `createAdmin(page) -> { email, password, secret }`
   - CI jobs: `backend` (Postgres 16 service; `uv sync --frozen`; `ruff check`; `ruff format --check`; `ty check`; `pytest`), `frontend` (`pnpm install --frozen-lockfile`; lint; typecheck; test; build), `api-types` (`pnpm gen:api` then `git diff --exit-code`), `e2e` (Playwright, Chromium only), `image` (`docker build`)
 
-- [ ] **Step 1: Write the end-to-end tests**
+- [x] **Step 1: Write the end-to-end tests**
 
 ```ts
 // setup.spec.ts
@@ -873,10 +873,10 @@ test("admin creates a reset link; user sets a new password and still needs TOTP"
 test("admin resets a user's 2FA; user must enrol again at next login", ...)
 ```
 
-- [ ] **Step 2: Run them** — `pnpm e2e` → all pass. A failure here is a defect in an earlier task: fix it there, with a unit test that reproduces it.
-- [ ] **Step 3: Write `ci.yml`** with the five jobs, triggered on push and pull request.
-- [ ] **Step 4: Verify** — run each job's commands locally in order; all exit 0. Confirm `pnpm gen:api` leaves the working tree clean.
-- [ ] **Step 5: Commit** — `git commit -m "test: end-to-end flows and CI"`
+- [x] **Step 2: Run them** — `pnpm e2e` → all pass. A failure here is a defect in an earlier task: fix it there, with a unit test that reproduces it.
+- [x] **Step 3: Write `ci.yml`** with the five jobs, triggered on push and pull request.
+- [x] **Step 4: Verify** — run each job's commands locally in order; all exit 0. Confirm `pnpm gen:api` leaves the working tree clean.
+- [x] **Step 5: Commit** — `git commit -m "test: end-to-end flows and CI"`
 
 ---
 

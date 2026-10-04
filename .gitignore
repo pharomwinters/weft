@@ -1,0 +1,20 @@
+.env
+.env.dev
+.superpowers/
+
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+*.egg-info/
+.DS_Store
+
+# End-to-end test output
+frontend/e2e/.bootstrap.log
+frontend/e2e/.state.json
+frontend/test-results/
+frontend/playwright-report/
