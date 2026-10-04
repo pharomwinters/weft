@@ -8,6 +8,7 @@ from api.errors import register_error_handlers
 from config import urls as config_urls
 from django.urls import path
 from ninja import NinjaAPI
+from ninja.utils import normalize_path
 
 # A route that needs a verified session, served from a separate API instance
 # ahead of the real one so the real `api` stays untouched.
@@ -22,17 +23,29 @@ def verified_only(request):
     return {}
 
 
+@test_api.get("/_test/hidden", include_in_schema=False)
+def hidden(request):
+    return {}
+
+
 urlpatterns = [path("api/v1/", test_api.urls), *config_urls.urlpatterns]
 pytestmark = pytest.mark.urls(__name__)
 
 
 def _routes(a: NinjaAPI):
-    schema = a.get_openapi_schema(path_prefix="")
-    return [
-        (method.upper(), template)
-        for template, ops in schema["paths"].items()
-        for method in ops
-    ]
+    """Every registered (METHOD, path template), including hidden ones.
+
+    Walks the bound routers rather than the OpenAPI schema, which omits any
+    operation declared with include_in_schema=False.
+    """
+    routes = []
+    for bound in a._get_bound_routers():
+        for template, path_view in bound.path_operations.items():
+            full = normalize_path("/".join(i for i in (bound.prefix, template) if i))
+            routes.extend(
+                (method, full) for op in path_view.operations for method in op.methods
+            )
+    return routes
 
 
 def all_routes():
@@ -87,3 +100,25 @@ def test_access_lists_are_exactly_as_specified():
 def test_health_is_listed_anonymous(api_client):
     assert ("GET", "/health") in ANONYMOUS
     assert api_client.get("/health").status_code == 200
+
+
+def test_walk_sees_routes_hidden_from_the_schema(api_client):
+    schema_paths = test_api.get_openapi_schema(path_prefix="")["paths"]
+    assert "/_test/hidden" not in schema_paths
+    assert ("GET", "/_test/hidden") in ROUTES
+    r = api_client.get("/_test/hidden")
+    assert r.status_code == 401
+    assert r.json()["error"]["details"]["session"] == "anonymous"
+
+
+def test_api_urls_are_only_the_api_mount_and_the_catch_all():
+    patterns = config_urls.urlpatterns
+    assert len(patterns) == 2
+    mount, catch_all = patterns
+    assert str(mount.pattern) == "api/v1/"
+    assert mount.namespace == api.urls_namespace
+    assert [str(p.pattern) for p in mount.url_patterns] == [
+        str(p.pattern) for p in api.urls[0]
+    ]
+    assert str(catch_all.pattern) == "^api/"
+    assert catch_all.callback.__name__ == "api_not_found"

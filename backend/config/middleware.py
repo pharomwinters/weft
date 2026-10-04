@@ -1,4 +1,4 @@
-from django.http import JsonResponse
+import json
 
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; style-src 'self' 'unsafe-inline'; "
@@ -38,7 +38,7 @@ class ApiMethodNotAllowedMiddleware:
                 "details": {},
             }
         }
-        shaped = JsonResponse(body, status=405)
-        if "Allow" in response:
-            shaped["Allow"] = response["Allow"]
-        return shaped
+        # Rewritten in place so headers set by other middleware survive.
+        response.content = json.dumps(body).encode()
+        response["Content-Type"] = "application/json"
+        return response

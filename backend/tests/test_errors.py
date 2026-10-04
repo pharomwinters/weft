@@ -88,6 +88,9 @@ def test_wrong_method_is_json_405(api_client):
     assert r.status_code == 405
     assert r.json()["error"]["code"] == "method_not_allowed"
     assert "GET" in r["Allow"]
+    assert "Content-Security-Policy" in r
+    assert r["Referrer-Policy"] == "no-referrer"
+    assert r["X-Frame-Options"] == "DENY"
 
 
 @pytest.mark.urls(__name__)
