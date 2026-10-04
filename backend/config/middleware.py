@@ -4,7 +4,8 @@ from accounts import sessions
 
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; frame-ancestors 'none'"
+    "img-src 'self' data:; object-src 'none'; base-uri 'self'; "
+    "form-action 'self'; frame-ancestors 'none'"
 )
 
 

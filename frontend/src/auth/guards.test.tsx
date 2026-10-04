@@ -144,6 +144,37 @@ const HOME = {
   "GET /workspaces?deleted=true": { body: [] },
 };
 
+describe("session", () => {
+  it("keeps a verified session when a later session check fails", async () => {
+    let fail = false;
+    mockApi({
+      "GET /auth/session": () => (fail ? { status: 502, body: {} } : { body: verified() }),
+      "GET /workspaces": () =>
+        apiError(401, "auth_required", "Sign in.", { session: "anonymous", next: "login" }),
+    });
+    renderApp(
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <RequireVerified>
+              <button onClick={() => void request("GET", "/workspaces").catch(() => {})}>
+                Load
+              </button>
+            </RequireVerified>
+          }
+        />
+        <Route path="*" element={<p>Elsewhere</p>} />
+      </Routes>,
+    );
+    const button = await screen.findByRole("button", { name: "Load" });
+    fail = true;
+    await userEvent.click(button);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(location()).toBe("/");
+  });
+});
+
 describe("shell", () => {
   it("shows admin links only to admins, and the signed-in email", async () => {
     mockApi({ ...HOME, "GET /auth/session": { body: verified({ email: "me@example.com" }) } });

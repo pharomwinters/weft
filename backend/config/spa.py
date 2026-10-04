@@ -15,6 +15,10 @@ _NOT_BUILT = (
 
 
 def index(request: HttpRequest, *args, **kwargs) -> HttpResponse:
+    if request.path.startswith("/assets/"):
+        # A built file WhiteNoise does not have (an old hash after a deploy):
+        # a script must not be answered with a page of HTML.
+        return HttpResponse("Not found.", status=404, content_type="text/plain")
     try:
         html = (settings.FRONTEND_DIST / "index.html").read_bytes()
     except OSError:

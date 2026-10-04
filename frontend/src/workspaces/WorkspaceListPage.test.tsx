@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { Workspace } from "../api/types";
+import { useSession } from "../auth/SessionProvider";
 import { click, renderPage, type } from "../auth/testing";
 import { apiError, mockApi, verified } from "../test/utils";
 import WorkspaceListPage from "./WorkspaceListPage";
@@ -64,6 +65,34 @@ describe("WorkspaceListPage", () => {
 
     await click("Restore Old project");
     expect(await screen.findByRole("link", { name: "Old project" })).toBeInTheDocument();
+  });
+
+  it("forgets one user's workspaces when another signs in", async () => {
+    let session = verified();
+    let mine = [workspace(1, "First user's team")];
+    mockApi({
+      "GET /auth/session": () => ({ body: session }),
+      "GET /workspaces": () => ({ body: mine }),
+      "GET /workspaces?deleted=true": { body: [] },
+    });
+    function Switch() {
+      const current = useSession();
+      return <button onClick={() => void current.refresh()}>Switch user</button>;
+    }
+    renderPage(
+      <>
+        <WorkspaceListPage />
+        <Switch />
+      </>,
+      "/",
+      "/",
+    );
+    await screen.findByRole("link", { name: "First user's team" });
+    session = { ...verified(), user: { id: 2, email: "b@example.com", is_instance_admin: false } };
+    mine = [workspace(5, "Second user's team")];
+    await click("Switch user");
+    expect(await screen.findByRole("link", { name: "Second user's team" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "First user's team" })).not.toBeInTheDocument();
   });
 
   it("has no deleted section when nothing can be restored", async () => {

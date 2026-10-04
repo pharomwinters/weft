@@ -47,6 +47,11 @@ def test_index_is_not_cached_but_hashed_assets_are(client):
     assert plain.status_code == 200 and "immutable" not in plain["Cache-Control"]
 
 
+def test_missing_asset_is_404_not_index(client):
+    r = client.get("/assets/index-oldhash.js")
+    assert r.status_code == 404 and b"<title>" not in r.content
+
+
 def test_static_files_and_index_carry_the_security_headers(client):
     for path in ("/login", "/assets/index-abc123.js"):
         r = client.get(path)

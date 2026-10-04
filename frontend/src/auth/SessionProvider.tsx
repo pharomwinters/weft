@@ -1,9 +1,11 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -32,14 +34,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     user: null,
   });
 
+  const queryClient = useQueryClient();
+  // Whose data the query cache holds; undefined until the first check.
+  const cachedFor = useRef<number | null | undefined>(undefined);
+
   const refresh = useCallback(async () => {
+    let fresh: SessionInfo;
     try {
       // Also sets the CSRF cookie that unsafe requests send back.
-      setInfo(await request<SessionInfo>("GET", "/auth/session"));
+      fresh = await request<SessionInfo>("GET", "/auth/session");
     } catch {
-      setInfo(SIGNED_OUT);
+      // A failed check is not a sign-out: keep what we knew, unless this was
+      // the first check and there is nothing to keep.
+      setInfo((known) => (known.state === "loading" ? SIGNED_OUT : known));
+      return;
     }
-  }, []);
+    // Cached server data belongs to whoever was verified when it was fetched.
+    const owner = fresh.state === "verified" ? (fresh.user?.id ?? null) : null;
+    if (cachedFor.current !== undefined && owner !== cachedFor.current) {
+      // Drop what is not on screen; whatever still is starts again from
+      // nothing once someone is signed in.
+      queryClient.removeQueries({ type: "inactive" });
+      if (owner !== null) void queryClient.resetQueries();
+    }
+    cachedFor.current = owner;
+    setInfo(fresh);
+  }, [queryClient]);
 
   useEffect(() => {
     void refresh();

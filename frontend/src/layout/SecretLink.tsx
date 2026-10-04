@@ -1,6 +1,8 @@
 import { Alert, Button, Code, Group, Stack, Text } from "@mantine/core";
 import { useState } from "react";
 
+import { copyText } from "./clipboard";
+
 /**
  * A link the server will never show again (an invitation or a reset link).
  * It lives in the caller's component state only.
@@ -16,11 +18,10 @@ export function SecretLink({
   note: string;
   onDismiss(): void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<boolean | null>(null);
 
   async function copy() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
+    setCopied(await copyText(url));
   }
 
   return (
@@ -32,7 +33,7 @@ export function SecretLink({
         </Code>
         <Group>
           <Button size="xs" onClick={() => void copy()}>
-            {copied ? "Copied" : "Copy link"}
+            {copied === null ? "Copy link" : copied ? "Copied" : "Select and copy by hand"}
           </Button>
           <Button size="xs" variant="default" onClick={onDismiss}>
             Done

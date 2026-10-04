@@ -1,7 +1,8 @@
 import { Button, Checkbox, Code, Group, SimpleGrid, Stack, Text } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { APP_NAME } from "../constants";
+import { copyText } from "../layout/clipboard";
 
 /**
  * The one showing of a user's recovery codes. They live in the parent's
@@ -15,12 +16,18 @@ export default function RecoveryCodes({
   onContinue(): void;
 }) {
   const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<boolean | null>(null);
   const text = codes.join("\n");
 
+  useEffect(() => {
+    // Leaving now loses the codes for good, so the browser asks first.
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
+
   async function copy() {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
+    setCopied(await copyText(text));
   }
 
   function download() {
@@ -29,7 +36,7 @@ export default function RecoveryCodes({
     link.href = url;
     link.download = `${APP_NAME.toLowerCase()}-recovery-codes.txt`;
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   return (
@@ -47,7 +54,7 @@ export default function RecoveryCodes({
       </SimpleGrid>
       <Group>
         <Button variant="default" onClick={() => void copy()}>
-          {copied ? "Copied" : "Copy"}
+          {copied === null ? "Copy" : copied ? "Copied" : "Select and copy by hand"}
         </Button>
         <Button variant="default" onClick={download}>
           Download

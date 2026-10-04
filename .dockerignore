@@ -12,4 +12,5 @@ frontend/dist
 frontend/test-results
 frontend/playwright-report
 frontend/e2e/.bootstrap.log
+frontend/e2e/.state.json
 docs

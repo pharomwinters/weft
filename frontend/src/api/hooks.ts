@@ -102,6 +102,9 @@ export function useApiMutation<TInput, TResult = void>(
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: run,
+    // Some results are secrets shown once (links, recovery codes); none should
+    // linger in the cache after the component that asked is gone.
+    gcTime: 0,
     onSuccess: async () => {
       await Promise.all(
         invalidate.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
