@@ -1,2 +1,3 @@
-// The product has no name yet. This is the one place the UI takes it from.
-export const APP_NAME = "Untitled";
+// The one place the UI takes the product's name and tagline from.
+export const APP_NAME = "Weft";
+export const APP_TAGLINE = "Where your data comes together.";

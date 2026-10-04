@@ -10,7 +10,7 @@ from .routers.invitations import router as invitations_router
 from .routers.setup import router as setup_router
 from .routers.workspaces import router as workspaces_router
 
-api = NinjaAPI(auth=verified, docs_url=None, openapi_url=None)
+api = NinjaAPI(title="Weft API", auth=verified, docs_url=None, openapi_url=None)
 register_error_handlers(api)
 api.add_router("/auth", auth_router)
 api.add_router("/account", account_router)

@@ -1,7 +1,7 @@
 [project]
-name = "backend"
+name = "weft"
 version = "0.1.0"
-description = "Self-hosted spreadsheet-database web app"
+description = "Weft: where your data comes together. A self-hosted spreadsheet-database web app."
 requires-python = ">=3.12"
 license = "AGPL-3.0-or-later"
 dependencies = [

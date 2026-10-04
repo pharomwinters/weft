@@ -21,8 +21,8 @@ STEP_SECONDS = 30
 DIGITS = 6
 TOLERANCE = 1  # steps accepted either side of the current one
 _SECRET_BYTES = 20
-# Shown by authenticator apps beside the account; the product has no name yet.
-ISSUER = "Untitled"
+# Shown by authenticator apps beside the account.
+ISSUER = "Weft"
 
 
 def _fernet() -> Fernet:
