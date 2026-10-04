@@ -15,6 +15,9 @@ ANONYMOUS: set[tuple[str, str]] = {
     # The invitee has no account yet; the token is the credential.
     ("GET", "/invitations/token/{token}"),
     ("POST", "/invitations/token/{token}/accept"),
+    # A forgotten password means no session; the reset token is the credential.
+    ("GET", "/auth/reset/{token}"),
+    ("POST", "/auth/reset/{token}"),
 }
 
 PARTIAL: set[tuple[str, str]] = {

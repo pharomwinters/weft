@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from accounts.passwords import MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH
 from ninja import Field, Schema
@@ -137,3 +137,41 @@ class InvitationInfoOut(Schema):
 class InvitationAcceptIn(Schema):
     email: str = Field(max_length=MAX_EMAIL_LENGTH)
     password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+
+
+class AdminUserOut(Schema):
+    id: int
+    email: str
+    is_instance_admin: bool
+    is_active: bool
+    has_2fa: bool
+    created_at: datetime
+
+
+class AdminFlagIn(Schema):
+    is_instance_admin: bool
+
+
+class ResetLinkOut(Schema):
+    url: str
+    expires_at: datetime
+
+
+class ResetPasswordIn(Schema):
+    new_password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+
+
+class AuditEventOut(Schema):
+    id: int
+    time: datetime
+    event: str
+    actor_email: str | None
+    target_type: str
+    target_id: str
+    ip: str | None
+    details: dict[str, Any]
+
+
+class AuditPageOut(Schema):
+    items: list[AuditEventOut]
+    next_before: int | None

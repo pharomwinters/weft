@@ -1,4 +1,4 @@
-from accounts import recovery, sessions, throttle, totp
+from accounts import recovery, services, sessions, throttle, totp
 from accounts.models import User, normalize_email
 from accounts.passwords import validate_changed_password
 from accounts.sessions import SessionRequest
@@ -17,6 +17,7 @@ from ..schemas import (
     ForcedPasswordIn,
     LoginIn,
     LoginOut,
+    ResetPasswordIn,
     SecondFactorOut,
     SessionOut,
 )
@@ -153,3 +154,31 @@ def forced_password_change(request: SessionRequest, payload: ForcedPasswordIn):
     if sessions.promote_if_ready(request):
         throttle.record_success(request, user.email)
     return {"next": sessions.next_step(request)}
+
+
+def _refuse_blocked_address(request: SessionRequest) -> None:
+    if throttle.is_blocked(request, None):
+        raise ApiError(429, "locked", "Too many attempts. Try again later.")
+
+
+def _dead_reset_token(request: SessionRequest) -> ApiError:
+    """One answer for unknown, used and expired reset tokens alike."""
+    throttle.record_failure(request, None)
+    return ApiError(404, "invalid_token", "This reset link is no longer valid.")
+
+
+@router.get("/reset/{token}", auth=anonymous, response={204: None})
+def inspect_reset_link(request: SessionRequest, token: str):
+    _refuse_blocked_address(request)
+    if not services.reset_link_is_live(token):
+        raise _dead_reset_token(request)
+    return Status(204, None)
+
+
+@router.post("/reset/{token}", auth=anonymous, response={204: None})
+def redeem_reset_link(request: SessionRequest, token: str, payload: ResetPasswordIn):
+    _refuse_blocked_address(request)
+    user = services.redeem_reset_link(token, payload.new_password, request=request)
+    if user is None:
+        raise _dead_reset_token(request)
+    return Status(204, None)

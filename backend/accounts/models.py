@@ -146,3 +146,18 @@ class Invitation(models.Model):
     revoked_at = models.DateTimeField(null=True)
 
     objects = models.Manager["Invitation"]()
+
+
+class ResetLink(models.Model):
+    """A single-use link that lets a user set a new password."""
+
+    token_hash = models.CharField(max_length=64, unique=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="+")
+    # Null when the link was made by the management command.
+    created_by = models.ForeignKey(
+        User, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True)
+
+    objects = models.Manager["ResetLink"]()
