@@ -107,3 +107,33 @@ class MemberOut(Schema):
     user_id: int
     email: str
     role: RoleName
+
+
+class InvitationIn(Schema):
+    workspace_id: int | None = None
+    role: RoleName | None = None
+
+
+class InvitationCreatedOut(Schema):
+    id: int
+    url: str
+    expires_at: datetime
+
+
+class InvitationOut(Schema):
+    id: int
+    workspace_id: int | None
+    workspace_name: str | None
+    role: RoleName | None
+    created_by_email: str | None
+    expires_at: datetime
+
+
+class InvitationInfoOut(Schema):
+    workspace_name: str | None
+    role: RoleName | None
+
+
+class InvitationAcceptIn(Schema):
+    email: str = Field(max_length=MAX_EMAIL_LENGTH)
+    password: str = Field(max_length=MAX_PASSWORD_LENGTH)

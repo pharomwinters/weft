@@ -37,6 +37,7 @@ if not _public_https and _public.hostname not in ("localhost", "127.0.0.1"):
         "sessions and passwords will cross the network unencrypted"
     )
 
+PUBLIC_URL = _config.public_url.rstrip("/")
 TRUSTED_PROXY_COUNT = _config.trusted_proxy_count
 TOTP_ENCRYPTION_KEY = _config.totp_encryption_key
 INITIAL_ADMIN_EMAIL = _config.initial_admin_email

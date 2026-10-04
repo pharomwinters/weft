@@ -12,6 +12,9 @@ ANONYMOUS: set[tuple[str, str]] = {
     # First-run setup happens before any account exists; both are 404 afterwards.
     ("GET", "/setup/status"),
     ("POST", "/setup/admin"),
+    # The invitee has no account yet; the token is the credential.
+    ("GET", "/invitations/token/{token}"),
+    ("POST", "/invitations/token/{token}/accept"),
 }
 
 PARTIAL: set[tuple[str, str]] = {

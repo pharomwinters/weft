@@ -125,3 +125,24 @@ class SetupToken(models.Model):
     created = models.DateTimeField(auto_now_add=True)
 
     objects = models.Manager["SetupToken"]()
+
+
+class Invitation(models.Model):
+    """A single-use link that lets a new user join, optionally into a workspace."""
+
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_by = models.ForeignKey(
+        User, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    workspace = models.ForeignKey(
+        "workspaces.Workspace", null=True, on_delete=models.CASCADE, related_name="+"
+    )
+    role = models.CharField(max_length=16, null=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True)
+    used_by = models.ForeignKey(
+        User, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    revoked_at = models.DateTimeField(null=True)
+
+    objects = models.Manager["Invitation"]()
