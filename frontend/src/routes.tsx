@@ -1,6 +1,10 @@
 import { Text, Title } from "@mantine/core";
 import { Route, Routes } from "react-router-dom";
 
+import AccountPage from "./account/AccountPage";
+import AuditLogPage from "./admin/AuditLogPage";
+import InvitationsPage from "./admin/InvitationsPage";
+import UsersPage from "./admin/UsersPage";
 import EnrolPage from "./auth/EnrolPage";
 import ForcedPasswordPage from "./auth/ForcedPasswordPage";
 import {
@@ -15,13 +19,14 @@ import ResetPage from "./auth/ResetPage";
 import SetupPage from "./auth/SetupPage";
 import VerifyPage from "./auth/VerifyPage";
 import Shell from "./layout/Shell";
+import WorkspaceDetailPage from "./workspaces/WorkspaceDetailPage";
+import WorkspaceListPage from "./workspaces/WorkspaceListPage";
 
-/** Stands in for a screen until its task builds it. */
-function Placeholder({ title }: { title: string }) {
+function NotFound() {
   return (
     <>
-      <Title order={2}>{title}</Title>
-      <Text c="dimmed">This screen is not built yet.</Text>
+      <Title order={2}>Not found</Title>
+      <Text c="dimmed">There is no page at this address.</Text>
     </>
   );
 }
@@ -71,14 +76,14 @@ export default function AppRoutes() {
           </RequireVerified>
         }
       >
-        <Route path="/" element={<Placeholder title="Workspaces" />} />
-        <Route path="/workspaces/:id" element={<Placeholder title="Workspace" />} />
-        <Route path="/account" element={<Placeholder title="Account" />} />
+        <Route path="/" element={<WorkspaceListPage />} />
+        <Route path="/workspaces/:id" element={<WorkspaceDetailPage />} />
+        <Route path="/account" element={<AccountPage />} />
         <Route
           path="/admin/users"
           element={
             <RequireAdmin>
-              <Placeholder title="Users" />
+              <UsersPage />
             </RequireAdmin>
           }
         />
@@ -86,7 +91,7 @@ export default function AppRoutes() {
           path="/admin/invitations"
           element={
             <RequireAdmin>
-              <Placeholder title="Invitations" />
+              <InvitationsPage />
             </RequireAdmin>
           }
         />
@@ -94,11 +99,11 @@ export default function AppRoutes() {
           path="/admin/audit"
           element={
             <RequireAdmin>
-              <Placeholder title="Audit log" />
+              <AuditLogPage />
             </RequireAdmin>
           }
         />
-        <Route path="*" element={<Placeholder title="Not found" />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );

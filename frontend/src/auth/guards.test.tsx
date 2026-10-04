@@ -138,16 +138,22 @@ describe("guards", () => {
   });
 });
 
+// What the home page behind the shell asks for.
+const HOME = {
+  "GET /workspaces": { body: [] },
+  "GET /workspaces?deleted=true": { body: [] },
+};
+
 describe("shell", () => {
   it("shows admin links only to admins, and the signed-in email", async () => {
-    mockApi({ "GET /auth/session": { body: verified({ email: "me@example.com" }) } });
+    mockApi({ ...HOME, "GET /auth/session": { body: verified({ email: "me@example.com" }) } });
     const { unmount } = renderApp(<AppRoutes />);
     expect(await screen.findByText("me@example.com")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Workspaces" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Audit log" })).not.toBeInTheDocument();
     unmount();
 
-    mockApi({ "GET /auth/session": { body: verified({ admin: true }) } });
+    mockApi({ ...HOME, "GET /auth/session": { body: verified({ admin: true }) } });
     renderApp(<AppRoutes />);
     expect(await screen.findByRole("link", { name: "Audit log" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
@@ -156,6 +162,8 @@ describe("shell", () => {
   it("signs out and goes to /login", async () => {
     let session: SessionInfo = verified();
     const calls = mockApi({
+      ...HOME,
+      "GET /setup/status": apiError(404, "not_found"),
       "GET /auth/session": () => ({ body: session }),
       "POST /auth/logout": () => {
         session = ANONYMOUS;
