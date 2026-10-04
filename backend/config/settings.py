@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "config.apps.ConfigConfig",
     "accounts.apps.AccountsConfig",
+    "audit.apps.AuditConfig",
 ]
 
 MIDDLEWARE = [
