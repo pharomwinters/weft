@@ -3,6 +3,8 @@ from django.http import JsonResponse
 from django.urls import path, re_path
 from django.views.decorators.csrf import csrf_exempt
 
+from . import spa
+
 
 @csrf_exempt
 def api_not_found(request, *args, **kwargs):
@@ -13,4 +15,6 @@ def api_not_found(request, *args, **kwargs):
 urlpatterns = [
     path("api/v1/", api.urls),
     re_path(r"^api/", api_not_found),
+    # Everything else is the single-page app.
+    re_path(r"^", spa.index),
 ]

@@ -126,9 +126,11 @@ def test_walk_sees_routes_hidden_from_the_schema(api_client):
 
 def test_api_urls_are_only_the_api_mount_and_the_catch_all():
     patterns = config_urls.urlpatterns
-    assert len(patterns) == 2
-    mount, catch_all = patterns
+    assert len(patterns) == 3
+    mount, catch_all, spa_fallback = patterns
     assert isinstance(mount, URLResolver) and isinstance(catch_all, URLPattern)
+    assert isinstance(spa_fallback, URLPattern)
+    assert spa_fallback.callback is config_urls.spa.index
     assert str(mount.pattern) == "api/v1/"
     assert mount.namespace == api.urls_namespace
     assert [str(p.pattern) for p in mount.url_patterns] == [

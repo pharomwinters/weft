@@ -19,7 +19,8 @@ DEBUG = False
 
 _public = urlsplit(_config.public_url)
 _public_https = _public.scheme == "https"
-ALLOWED_HOSTS = [_public.hostname]
+# The loopback names are for the container's own health check.
+ALLOWED_HOSTS = [_public.hostname, "localhost", "127.0.0.1"]
 CSRF_TRUSTED_ORIGINS = [f"{_public.scheme}://{_public.netloc}"]
 SESSION_COOKIE_SECURE = _public_https
 CSRF_COOKIE_SECURE = _public_https
@@ -39,6 +40,9 @@ if not _public_https and _public.hostname not in ("localhost", "127.0.0.1"):
 
 PUBLIC_URL = _config.public_url.rstrip("/")
 TRUSTED_PROXY_COUNT = _config.trusted_proxy_count
+if TRUSTED_PROXY_COUNT > 0:
+    # Behind a declared proxy, let it say the original request was https.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 TOTP_ENCRYPTION_KEY = _config.totp_encryption_key
 INITIAL_ADMIN_EMAIL = _config.initial_admin_email
 INITIAL_ADMIN_PASSWORD = _config.initial_admin_password
@@ -56,8 +60,18 @@ INSTALLED_APPS = [
     "workspaces.apps.WorkspacesConfig",
 ]
 
+# The built frontend. WhiteNoise serves its files; config.spa serves index.html
+# for every other non-API path.
+FRONTEND_DIST = Path(os.environ.get("FRONTEND_DIST") or "/app/frontend_dist")
+WHITENOISE_ROOT = FRONTEND_DIST if FRONTEND_DIST.is_dir() else None
+# Vite puts content-hashed files under /assets/; they never change.
+WHITENOISE_IMMUTABLE_FILE_TEST = r"^/assets/"
+
 MIDDLEWARE = [
+    # Outermost, so its headers are on every response, static files included.
+    "config.middleware.SecurityHeadersMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -66,7 +80,6 @@ MIDDLEWARE = [
     "axes.middleware.AxesMiddleware",
     "config.middleware.LastSeenMiddleware",
     "config.middleware.ApiMethodNotAllowedMiddleware",
-    "config.middleware.SecurityHeadersMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
