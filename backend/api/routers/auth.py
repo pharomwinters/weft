@@ -1,4 +1,4 @@
-from accounts import sessions, throttle
+from accounts import recovery, sessions, throttle, totp
 from accounts.models import User, normalize_email
 from accounts.sessions import SessionRequest
 from audit import events
@@ -9,7 +9,15 @@ from ninja import Router, Status
 
 from ..auth import anonymous, partial, session_state
 from ..errors import ApiError
-from ..schemas import LoginIn, LoginOut, SessionOut
+from ..schemas import (
+    CodeIn,
+    EnrolConfirmOut,
+    EnrolStartOut,
+    LoginIn,
+    LoginOut,
+    SecondFactorOut,
+    SessionOut,
+)
 
 router = Router()
 
@@ -49,5 +57,74 @@ def login(request: SessionRequest, payload: LoginIn):
 def logout(request: SessionRequest):
     user = request.auth
     record(events.LOGOUT, request=request, actor=user, target=user)
-    request.session.flush()
+    sessions.end_current(request)
     return Status(204, None)
+
+
+def _second_factor_user(request: SessionRequest, *, enrolled: bool) -> User:
+    """The partial session's user, at the step the endpoint belongs to.
+
+    Refuses a verified session, a user on the other side of enrolment, and a
+    locked account or blocked address.
+    """
+    if sessions.is_verified(request):
+        raise ApiError(409, "already_verified", "This session is already verified.")
+    user = request.auth
+    if totp.has_confirmed_device(user) != enrolled:
+        if enrolled:
+            raise ApiError(
+                401,
+                "auth_required",
+                "Authentication is required.",
+                {"session": "partial", "next": sessions.next_step(request)},
+            )
+        raise ApiError(409, "already_enrolled", "Two-factor is already set up.")
+    if throttle.is_blocked(request, user.email):
+        raise ApiError(429, "locked", "Too many attempts. Try again later.")
+    return user
+
+
+def _bad_code(request: SessionRequest, user: User) -> ApiError:
+    throttle.record_failure(request, user.email)
+    return ApiError(401, "invalid_code", "That code is not valid.")
+
+
+def _second_factor_done(request: SessionRequest, user: User) -> dict:
+    sessions.mark_second_factor_ok(request)
+    if sessions.promote_if_ready(request):
+        throttle.record_success(request, user.email)
+    return {"next": sessions.next_step(request)}
+
+
+@router.post("/enrol/start", auth=partial, response=EnrolStartOut)
+def enrol_start(request: SessionRequest):
+    user = _second_factor_user(request, enrolled=False)
+    secret, uri = totp.begin_enrolment(user)
+    return {"secret": secret, "otpauth_uri": uri}
+
+
+@router.post("/enrol/confirm", auth=partial, response=EnrolConfirmOut)
+def enrol_confirm(request: SessionRequest, payload: CodeIn):
+    user = _second_factor_user(request, enrolled=False)
+    if not totp.confirm_enrolment(user, payload.code):
+        raise _bad_code(request, user)
+    codes = recovery.generate(user)
+    record(events.TOTP_ENROLLED, request=request, actor=user, target=user)
+    return {"recovery_codes": codes, **_second_factor_done(request, user)}
+
+
+@router.post("/verify", auth=partial, response=SecondFactorOut)
+def verify(request: SessionRequest, payload: CodeIn):
+    user = _second_factor_user(request, enrolled=True)
+    if not totp.verify(user, payload.code):
+        raise _bad_code(request, user)
+    return _second_factor_done(request, user)
+
+
+@router.post("/recovery", auth=partial, response=SecondFactorOut)
+def use_recovery_code(request: SessionRequest, payload: CodeIn):
+    user = _second_factor_user(request, enrolled=True)
+    if not recovery.redeem(user, payload.code):
+        raise _bad_code(request, user)
+    record(events.RECOVERY_CODE_USED, request=request, actor=user, target=user)
+    return _second_factor_done(request, user)

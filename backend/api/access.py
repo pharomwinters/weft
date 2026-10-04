@@ -13,4 +13,9 @@ ANONYMOUS: set[tuple[str, str]] = {
 
 PARTIAL: set[tuple[str, str]] = {
     ("POST", "/auth/logout"),  # lets a half-logged-in user abandon the attempt
+    # The second-factor step is what turns a partial session into a verified one.
+    ("POST", "/auth/enrol/start"),
+    ("POST", "/auth/enrol/confirm"),
+    ("POST", "/auth/verify"),
+    ("POST", "/auth/recovery"),
 }

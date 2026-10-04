@@ -2,8 +2,12 @@ import json
 from typing import Any
 
 import pytest
-from accounts.models import User
+from accounts import totp
+from accounts.models import TotpDevice, User
 from django.test import Client
+from django_otp.oath import TOTP
+
+PASSWORD = "correct horse battery"
 
 
 class ApiClient:
@@ -77,3 +81,63 @@ def partial_client(api_client, make_user) -> ApiClient:
     )
     assert r.status_code == 200
     return api_client
+
+
+@pytest.fixture
+def code_for():
+    """code_for(user, offset=0, confirmed=True): a valid code for the user's device.
+
+    A code is good once. For a second one in the same test pass offset=1 (the
+    next time step, still inside the tolerance) or move the clock.
+    """
+
+    def _code(user: User, offset: int = 0, *, confirmed: bool = True) -> str:
+        device = TotpDevice.objects.get(user=user, confirmed=confirmed)
+        generator = TOTP(
+            totp.device_key(device),
+            step=totp.STEP_SECONDS,
+            digits=totp.DIGITS,
+            drift=offset,
+        )
+        return f"{generator.token():0{totp.DIGITS}d}"
+
+    return _code
+
+
+@pytest.fixture
+def enrolled(db):
+    """enrolled(user): gives the user a confirmed device, created directly."""
+
+    def _enrol(user: User) -> User:
+        totp.begin_enrolment(user)
+        TotpDevice.objects.filter(user=user).update(confirmed=True)
+        return user
+
+    return _enrol
+
+
+@pytest.fixture
+def make_verified_client(code_for):
+    """make_verified_client(user, password=..., offset=0): through login and verify."""
+
+    def _make(user: User, password: str = PASSWORD, *, offset: int = 0) -> ApiClient:
+        client = ApiClient()
+        r = client.post("/auth/login", {"email": user.email, "password": password})
+        assert r.status_code == 200, r.content
+        r = client.post("/auth/verify", {"code": code_for(user, offset)})
+        assert r.status_code == 200, r.content
+        return client
+
+    return _make
+
+
+@pytest.fixture
+def user(make_user, enrolled) -> User:
+    """An enrolled user, u@example.com."""
+    return enrolled(make_user())
+
+
+@pytest.fixture
+def verified_client(user, make_verified_client) -> ApiClient:
+    """A client with a verified session for the `user` fixture."""
+    return make_verified_client(user)

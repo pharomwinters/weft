@@ -6,6 +6,7 @@ All three enforce CSRF on unsafe methods. A failed check is a 401
 
 from accounts import sessions
 from accounts.sessions import SessionRequest
+from django.http import HttpResponse
 from django.middleware.csrf import CsrfViewMiddleware
 
 from .errors import ApiError
@@ -13,11 +14,17 @@ from .errors import ApiError
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS", "TRACE"}
 
 
+def _unused_view(request) -> HttpResponse:
+    """Stands in for the view; the CSRF middleware only needs one to exist."""
+    return HttpResponse()
+
+
 def _check_csrf(request: SessionRequest) -> None:
     if request.method in _SAFE_METHODS:
         return
     # Ninja views are csrf_exempt, so the middleware's own check is skipped.
-    reason = CsrfViewMiddleware(lambda r: None).process_view(request, None, (), {})
+    middleware = CsrfViewMiddleware(_unused_view)
+    reason = middleware.process_view(request, _unused_view, (), {})
     if reason is not None:
         raise ApiError(403, "csrf_failed", "The request could not be verified.")
 

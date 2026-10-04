@@ -223,7 +223,8 @@ def test_overlong_email_counts_only_against_the_address(db, req):
     long_email = "x" * 1000 + "@example.com"
     record_failure(req, long_email)
     assert AuditEvent.objects.filter(event=events.LOGIN_FAILURE).count() == 1
-    assert AuditEvent.objects.get(event=events.LOGIN_FAILURE).details == {}
+    failures = AuditEvent.objects.filter(event=events.LOGIN_FAILURE)
+    assert all(e.details == {} for e in failures) and failures.exists()
     assert IpFailure.objects.filter(ip="203.0.113.9").count() == 1
     assert not is_blocked(req, long_email)
     record_success(req, long_email)
@@ -258,8 +259,7 @@ def test_lockout_recorded_once_in_audit(db, req):
     assert [e.details for e in lockouts] == [{"scope": "account"}]
     failures = AuditEvent.objects.filter(event=events.LOGIN_FAILURE)
     assert failures.count() == 8
-    assert failures.first().details == {"email": EMAIL}
-    assert failures.first().ip == "203.0.113.9"
+    assert {(e.ip, e.details["email"]) for e in failures} == {("203.0.113.9", EMAIL)}
 
 
 def test_ip_lockout_recorded_once_in_audit(db, req):
@@ -268,9 +268,11 @@ def test_ip_lockout_recorded_once_in_audit(db, req):
     lockouts = AuditEvent.objects.filter(event=events.LOCKOUT)
     assert [e.details for e in lockouts] == [{"scope": "ip"}]
     assert AuditEvent.objects.get(event=events.LOCKOUT).ip == "203.0.113.9"
-    assert AuditEvent.objects.filter(event=events.LOGIN_FAILURE).first().details == {}
+    failures = AuditEvent.objects.filter(event=events.LOGIN_FAILURE)
+    assert all(e.details == {} for e in failures) and failures.exists()
 
 
 def test_failure_without_email_is_audited_without_email(db, req):
     record_failure(req, None)
-    assert AuditEvent.objects.get(event=events.LOGIN_FAILURE).details == {}
+    failures = AuditEvent.objects.filter(event=events.LOGIN_FAILURE)
+    assert all(e.details == {} for e in failures) and failures.exists()

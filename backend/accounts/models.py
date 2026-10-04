@@ -65,3 +65,54 @@ class IpBlock(models.Model):
     blocked_until = models.DateTimeField()
 
     objects = models.Manager["IpBlock"]()
+
+
+class TotpDevice(models.Model):
+    """A TOTP secret, encrypted at rest. Pending until a code confirms it."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="+")
+    secret_encrypted = models.TextField()
+    confirmed = models.BooleanField(default=False)
+    # The last accepted time step; a code for it or an earlier one is a replay.
+    last_step = models.BigIntegerField(null=True)
+
+    objects = models.Manager["TotpDevice"]()
+
+    class Meta:
+        constraints: ClassVar[list[models.BaseConstraint]] = [
+            # At most one confirmed and one unconfirmed device per user.
+            models.UniqueConstraint(
+                fields=["user", "confirmed"], name="accounts_totpdevice_user_confirmed"
+            )
+        ]
+
+
+class RecoveryCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="+")
+    code_hash = models.CharField(max_length=64)
+    used_at = models.DateTimeField(null=True)
+
+    objects = models.Manager["RecoveryCode"]()
+
+    class Meta:
+        indexes: ClassVar[list[models.Index]] = [
+            models.Index(
+                fields=["user", "code_hash"], name="accounts_recovery_user_hash"
+            )
+        ]
+
+
+USER_AGENT_LENGTH = 512
+
+
+class UserSession(models.Model):
+    """One verified session, so its owner can list and revoke it."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="+")
+    session_key = models.CharField(max_length=40, unique=True)
+    ip = models.GenericIPAddressField(null=True)
+    user_agent = models.CharField(max_length=USER_AGENT_LENGTH, blank=True)
+    created = models.DateTimeField()
+    last_seen = models.DateTimeField()
+
+    objects = models.Manager["UserSession"]()

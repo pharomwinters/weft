@@ -11,10 +11,13 @@ from typing import Any, Literal
 from django.contrib.auth import login
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.base import SessionBase
+from django.contrib.sessions.models import Session
 from django.http import HttpRequest
 from django.utils import timezone
 
-from .models import User
+from . import totp
+from .models import USER_AGENT_LENGTH, User, UserSession
+from .net import client_ip
 
 PARTIAL_LIFETIME = timedelta(minutes=10)
 _KEY = "partial"
@@ -31,8 +34,16 @@ class SessionRequest(HttpRequest):
 NextStep = Literal["login", "verify", "enrol", "change_password"]
 
 
+def _forget(session_key: str | None) -> None:
+    if session_key:
+        UserSession.objects.filter(session_key=session_key).delete()
+
+
 def start_partial(request: SessionRequest, user: User) -> None:
+    _forget(request.session.session_key)
     request.session.flush()  # new key: no session fixation, no leftover state
+    # A verified session that logs in again is partial from here on.
+    request.user = AnonymousUser()
     request.session[_KEY] = {
         "user_id": user.pk,
         "started": timezone.now().timestamp(),
@@ -69,7 +80,7 @@ def next_step(request: SessionRequest) -> NextStep | None:
     if user is None:
         return "login"
     if not request.session[_KEY]["second_factor_ok"]:
-        return "enrol"  # Task 6 returns "verify" for users with a device
+        return "verify" if totp.has_confirmed_device(user) else "enrol"
     return "change_password" if user.must_change_password else None
 
 
@@ -81,4 +92,29 @@ def promote_if_ready(request: SessionRequest) -> bool:
         return False
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     request.session.pop(_KEY, None)
+    now = timezone.now()
+    UserSession.objects.create(
+        user=user,
+        session_key=request.session.session_key,
+        ip=client_ip(request) or None,
+        user_agent=request.META.get("HTTP_USER_AGENT", "")[:USER_AGENT_LENGTH],
+        created=now,
+        last_seen=now,
+    )
     return True
+
+
+def end_current(request: SessionRequest) -> None:
+    """Log out: drop the session and its UserSession row."""
+    _forget(request.session.session_key)
+    request.session.flush()
+
+
+def end_sessions(user: User, *, except_key: str | None = None) -> None:
+    """End the user's verified sessions, optionally sparing one."""
+    rows = UserSession.objects.filter(user=user)
+    if except_key is not None:
+        rows = rows.exclude(session_key=except_key)
+    keys = list(rows.values_list("session_key", flat=True))
+    Session.objects.filter(session_key__in=keys).delete()
+    rows.filter(session_key__in=keys).delete()

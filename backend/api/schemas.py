@@ -23,3 +23,21 @@ class SessionOut(Schema):
     state: Literal["anonymous", "partial", "verified"]
     next: str | None
     user: UserOut | None
+
+
+class CodeIn(Schema):
+    # Longer than any TOTP or recovery code with separators; the rest is noise.
+    code: str = Field(max_length=64)
+
+
+class EnrolStartOut(Schema):
+    secret: str
+    otpauth_uri: str
+
+
+class SecondFactorOut(Schema):
+    next: Literal["change_password"] | None
+
+
+class EnrolConfirmOut(SecondFactorOut):
+    recovery_codes: list[str]

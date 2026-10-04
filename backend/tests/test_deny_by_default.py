@@ -6,7 +6,7 @@ from api.api import api
 from api.auth import verified
 from api.errors import register_error_handlers
 from config import urls as config_urls
-from django.urls import path
+from django.urls import URLPattern, URLResolver, path
 from ninja import NinjaAPI
 from ninja.utils import normalize_path
 
@@ -94,7 +94,13 @@ def test_access_lists_are_exactly_as_specified():
         ("GET", "/auth/session"),
         ("POST", "/auth/login"),
     } == ANONYMOUS
-    assert {("POST", "/auth/logout")} == PARTIAL
+    assert {
+        ("POST", "/auth/logout"),
+        ("POST", "/auth/enrol/start"),
+        ("POST", "/auth/enrol/confirm"),
+        ("POST", "/auth/verify"),
+        ("POST", "/auth/recovery"),
+    } == PARTIAL
 
 
 def test_health_is_listed_anonymous(api_client):
@@ -115,10 +121,11 @@ def test_api_urls_are_only_the_api_mount_and_the_catch_all():
     patterns = config_urls.urlpatterns
     assert len(patterns) == 2
     mount, catch_all = patterns
+    assert isinstance(mount, URLResolver) and isinstance(catch_all, URLPattern)
     assert str(mount.pattern) == "api/v1/"
     assert mount.namespace == api.urls_namespace
     assert [str(p.pattern) for p in mount.url_patterns] == [
         str(p.pattern) for p in api.urls[0]
     ]
     assert str(catch_all.pattern) == "^api/"
-    assert catch_all.callback.__name__ == "api_not_found"
+    assert catch_all.callback is config_urls.api_not_found
