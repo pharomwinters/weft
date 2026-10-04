@@ -60,6 +60,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "axes.middleware.AxesMiddleware",
+    "config.middleware.LastSeenMiddleware",
     "config.middleware.ApiMethodNotAllowedMiddleware",
     "config.middleware.SecurityHeadersMiddleware",
 ]

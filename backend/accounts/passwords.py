@@ -32,3 +32,15 @@ def validate_new_password(password: str, user=None) -> None:
             "The password is not acceptable.",
             {"password": list(exc.messages)},
         ) from exc
+
+
+def validate_changed_password(password: str, user) -> None:
+    """validate_new_password, and the password must differ from the current one."""
+    validate_new_password(password, user)
+    if user.check_password(password):
+        raise ApiError(
+            400,
+            "validation",
+            "The password is not acceptable.",
+            {"password": ["The new password must differ from the current one."]},
+        )

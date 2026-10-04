@@ -1,5 +1,6 @@
 from accounts import recovery, sessions, throttle, totp
 from accounts.models import User, normalize_email
+from accounts.passwords import validate_changed_password
 from accounts.sessions import SessionRequest
 from audit import events
 from audit.service import record
@@ -13,6 +14,7 @@ from ..schemas import (
     CodeIn,
     EnrolConfirmOut,
     EnrolStartOut,
+    ForcedPasswordIn,
     LoginIn,
     LoginOut,
     SecondFactorOut,
@@ -128,3 +130,26 @@ def use_recovery_code(request: SessionRequest, payload: CodeIn):
         raise _bad_code(request, user)
     record(events.RECOVERY_CODE_USED, request=request, actor=user, target=user)
     return _second_factor_done(request, user)
+
+
+@router.post("/password/forced", auth=partial, response=SecondFactorOut)
+def forced_password_change(request: SessionRequest, payload: ForcedPasswordIn):
+    user = request.auth
+    if sessions.is_verified(request) or not user.must_change_password:
+        raise ApiError(409, "not_required", "No password change is required.")
+    if not sessions.second_factor_ok(request):
+        raise ApiError(
+            401,
+            "auth_required",
+            "Authentication is required.",
+            {"session": "partial", "next": sessions.next_step(request)},
+        )
+    validate_changed_password(payload.new_password, user)
+    user.set_password(payload.new_password)
+    user.must_change_password = False
+    user.save(update_fields=["password", "must_change_password"])
+    record(events.PASSWORD_CHANGED, request=request, actor=user, target=user)
+    sessions.end_sessions(user)
+    if sessions.promote_if_ready(request):
+        throttle.record_success(request, user.email)
+    return {"next": sessions.next_step(request)}

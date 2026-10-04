@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from accounts.passwords import MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH
@@ -40,4 +41,26 @@ class SecondFactorOut(Schema):
 
 
 class EnrolConfirmOut(SecondFactorOut):
+    recovery_codes: list[str]
+
+
+class ForcedPasswordIn(Schema):
+    new_password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+
+
+class PasswordChangeIn(Schema):
+    current_password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+    new_password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+
+
+class SessionItemOut(Schema):
+    id: int
+    ip: str | None
+    user_agent: str
+    created: datetime
+    last_seen: datetime
+    current: bool
+
+
+class RecoveryCodesOut(Schema):
     recovery_codes: list[str]

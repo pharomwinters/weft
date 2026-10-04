@@ -18,4 +18,6 @@ PARTIAL: set[tuple[str, str]] = {
     ("POST", "/auth/enrol/confirm"),
     ("POST", "/auth/verify"),
     ("POST", "/auth/recovery"),
+    # Due after the second factor and before the session can become verified.
+    ("POST", "/auth/password/forced"),
 }

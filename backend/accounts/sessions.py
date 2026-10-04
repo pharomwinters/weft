@@ -8,7 +8,7 @@ in promote_if_ready, so a partial session never authenticates request.user.
 from datetime import timedelta
 from typing import Any, Literal
 
-from django.contrib.auth import login
+from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.base import SessionBase
 from django.contrib.sessions.models import Session
@@ -20,6 +20,7 @@ from .models import USER_AGENT_LENGTH, User, UserSession
 from .net import client_ip
 
 PARTIAL_LIFETIME = timedelta(minutes=10)
+TOUCH_INTERVAL = timedelta(minutes=1)
 _KEY = "partial"
 
 
@@ -67,6 +68,11 @@ def mark_second_factor_ok(request: SessionRequest) -> None:
     request.session[_KEY] = state  # reassign so the session is saved
 
 
+def second_factor_ok(request: SessionRequest) -> bool:
+    state = request.session.get(_KEY)
+    return bool(state and state["second_factor_ok"])
+
+
 def is_verified(request: SessionRequest) -> bool:
     user = request.user
     return bool(user.is_authenticated and user.is_active)
@@ -79,7 +85,7 @@ def next_step(request: SessionRequest) -> NextStep | None:
     user = partial_user(request)
     if user is None:
         return "login"
-    if not request.session[_KEY]["second_factor_ok"]:
+    if not second_factor_ok(request):
         return "verify" if totp.has_confirmed_device(user) else "enrol"
     return "change_password" if user.must_change_password else None
 
@@ -88,7 +94,7 @@ def promote_if_ready(request: SessionRequest) -> bool:
     user = partial_user(request)
     if user is None:
         return False
-    if not request.session[_KEY]["second_factor_ok"] or user.must_change_password:
+    if not second_factor_ok(request) or user.must_change_password:
         return False
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     request.session.pop(_KEY, None)
@@ -118,3 +124,33 @@ def end_sessions(user: User, *, except_key: str | None = None) -> None:
     keys = list(rows.values_list("session_key", flat=True))
     Session.objects.filter(session_key__in=keys).delete()
     rows.filter(session_key__in=keys).delete()
+
+
+def keep_after_password_change(request: SessionRequest, user: User) -> None:
+    """Keep this verified session alive across the user's password change.
+
+    Django ties a session to the password hash and rotates the key when the
+    tie is renewed, so the UserSession row follows the new key. Every other
+    session of the user is ended.
+    """
+    old_key = request.session.session_key
+    update_session_auth_hash(request, user)
+    new_key = request.session.session_key
+    UserSession.objects.filter(session_key=old_key).update(session_key=new_key)
+    end_sessions(user, except_key=new_key)
+
+
+def end_session(row: UserSession) -> None:
+    Session.objects.filter(session_key=row.session_key).delete()
+    row.delete()
+
+
+def touch(request: SessionRequest) -> None:
+    """Note that a verified session was just used, at most once a minute."""
+    if not is_verified(request):
+        return
+    now = timezone.now()
+    UserSession.objects.filter(
+        session_key=request.session.session_key,
+        last_seen__lt=now - TOUCH_INTERVAL,
+    ).update(last_seen=now)

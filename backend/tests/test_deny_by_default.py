@@ -100,6 +100,7 @@ def test_access_lists_are_exactly_as_specified():
         ("POST", "/auth/enrol/confirm"),
         ("POST", "/auth/verify"),
         ("POST", "/auth/recovery"),
+        ("POST", "/auth/password/forced"),
     } == PARTIAL
 
 

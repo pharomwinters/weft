@@ -1,5 +1,7 @@
 import json
 
+from accounts import sessions
+
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; frame-ancestors 'none'"
@@ -42,3 +44,14 @@ class ApiMethodNotAllowedMiddleware:
         response.content = json.dumps(body).encode()
         response["Content-Type"] = "application/json"
         return response
+
+
+class LastSeenMiddleware:
+    """Keeps UserSession.last_seen current for the account's session list."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        sessions.touch(request)
+        return self.get_response(request)
