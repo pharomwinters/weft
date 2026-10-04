@@ -400,7 +400,7 @@ def test_health_is_listed_anonymous():
     - `POST /auth/enrol/confirm` `{code}` → `{"recovery_codes": [10 strings], "next": "change_password"|null}`
     - `POST /auth/verify` `{code}` → `{"next": "change_password"|null}`; 401 `invalid_code`; 429 `locked`
     - `POST /auth/recovery` `{code}` → same as verify
-  - Fixtures: `code_for(user) -> str` (current valid code), `enrolled(user) -> User` (confirmed device, created directly), `verified_client(user) -> api_client` (through the real login and verify endpoints)
+  - Fixtures: `code_for(user) -> str` (current valid code), `enrolled(user) -> User` (confirmed device, created directly), `verified_client(user) -> api_client` (through the real login and verify endpoints). The tests below also name `enrolled_user`, `partial_enrolled_client` and `code_for_pending`; define those in `tests/test_totp.py` from these three.
 
 - [ ] **Step 1: Write the failing tests**
 
