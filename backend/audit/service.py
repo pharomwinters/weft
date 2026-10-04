@@ -1,16 +1,13 @@
 from typing import Any
 
 from accounts.models import User
+from accounts.net import client_ip
 from django.db.models import Model
 from django.http import HttpRequest
 
 from .models import AuditEvent
 
 FORBIDDEN_DETAIL_KEYS = {"password", "new_password", "code", "token", "secret"}
-
-
-def _client_ip(request: HttpRequest) -> str | None:
-    return request.META.get("REMOTE_ADDR")
 
 
 def _check_details(value: Any) -> None:
@@ -39,6 +36,6 @@ def record(
         actor=actor,
         target_type=type(target).__name__.lower() if target is not None else "",
         target_id=str(target.pk) if target is not None else "",
-        ip=_client_ip(request) if request is not None else None,
+        ip=client_ip(request) if request is not None else None,
         details=details,
     )

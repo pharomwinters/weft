@@ -42,3 +42,17 @@ class User(AbstractBaseUser):
         constraints: ClassVar[list[models.BaseConstraint]] = [
             models.UniqueConstraint(Lower("email"), name="accounts_user_email_ci_uniq")
         ]
+
+
+class IpFailure(models.Model):
+    """One failed attempt from one client address, for per-address blocking."""
+
+    ip = models.CharField(max_length=45)
+    created = models.DateTimeField()
+
+    objects = models.Manager["IpFailure"]()
+
+    class Meta:
+        indexes: ClassVar[list[models.Index]] = [
+            models.Index(fields=["ip", "created"], name="accounts_ipfailure_ip_created")
+        ]

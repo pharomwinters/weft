@@ -2,6 +2,7 @@
 
 import logging
 import os
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    "axes",
     "config.apps.ConfigConfig",
     "accounts.apps.AccountsConfig",
     "audit.apps.AuditConfig",
@@ -53,6 +55,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "axes.middleware.AxesMiddleware",
     "config.middleware.SecurityHeadersMiddleware",
 ]
 
@@ -84,6 +87,20 @@ PASSWORD_HASHERS = [
 ]
 
 AUTH_USER_MODEL = "accounts.User"
+
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+# Per-account lockout is django-axes, driven only through accounts.throttle.
+# Per-address blocking is our own (accounts.IpFailure), so axes counts by
+# username alone; its warning that the address is missing does not apply.
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = timedelta(minutes=15)
+AXES_LOCKOUT_PARAMETERS = ["username"]
+AXES_CLIENT_IP_CALLABLE = "accounts.net.client_ip"
+SILENCED_SYSTEM_CHECKS = ["axes.W006"]
 
 AUTH_PASSWORD_VALIDATORS = [
     {

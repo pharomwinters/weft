@@ -61,3 +61,8 @@ def make_user(db):
         )
 
     return _make
+
+
+@pytest.fixture
+def req(rf):
+    return rf.get("/", REMOTE_ADDR="203.0.113.9")
