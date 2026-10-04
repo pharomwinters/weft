@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "axes",
+    # Only for its export_openapi_schema command; the docs pages stay off.
+    "ninja",
     "config.apps.ConfigConfig",
     "accounts.apps.AccountsConfig",
     "audit.apps.AuditConfig",
