@@ -1,0 +1,12 @@
+"""Every action the permission function knows. Values follow the spec's table."""
+
+INSTANCE_MANAGE_USERS = "instance.manage_users"
+INSTANCE_CREATE_INVITATION = "instance.create_invitation"
+INSTANCE_VIEW_AUDIT_LOG = "instance.view_audit_log"
+WORKSPACE_CREATE = "workspace.create"
+WORKSPACE_VIEW = "workspace.view"
+WORKSPACE_RENAME = "workspace.rename"
+WORKSPACE_MANAGE_MEMBERS = "workspace.manage_members"
+WORKSPACE_INVITE = "workspace.invite"
+WORKSPACE_DELETE = "workspace.delete"
+WORKSPACE_RESTORE = "workspace.restore"

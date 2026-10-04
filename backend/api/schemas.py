@@ -77,3 +77,33 @@ class SetupIn(Schema):
     token: str = Field(max_length=MAX_TOKEN_LENGTH)
     email: str = Field(max_length=MAX_EMAIL_LENGTH)
     password: str = Field(max_length=MAX_PASSWORD_LENGTH)
+
+
+RoleName = Literal["owner", "editor", "viewer"]
+
+
+class WorkspaceIn(Schema):
+    # Generous here; the service trims and applies the real 1-100 rule.
+    name: str = Field(max_length=1000)
+
+
+class WorkspaceOut(Schema):
+    id: int
+    name: str
+    role: RoleName | None
+    deleted_at: datetime | None
+
+
+class MemberAddIn(Schema):
+    email: str = Field(max_length=MAX_EMAIL_LENGTH + 32)
+    role: RoleName
+
+
+class MemberRoleIn(Schema):
+    role: RoleName
+
+
+class MemberOut(Schema):
+    user_id: int
+    email: str
+    role: RoleName

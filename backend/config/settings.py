@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "config.apps.ConfigConfig",
     "accounts.apps.AccountsConfig",
     "audit.apps.AuditConfig",
+    "workspaces.apps.WorkspacesConfig",
 ]
 
 MIDDLEWARE = [

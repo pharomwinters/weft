@@ -141,3 +141,14 @@ def user(make_user, enrolled) -> User:
 def verified_client(user, make_verified_client) -> ApiClient:
     """A client with a verified session for the `user` fixture."""
     return make_verified_client(user)
+
+
+@pytest.fixture
+def signed_in(make_user, enrolled, make_verified_client):
+    """signed_in(email, admin=False): an enrolled user and their verified client."""
+
+    def _signed_in(email: str, *, admin: bool = False) -> tuple[User, ApiClient]:
+        account = enrolled(make_user(email, admin=admin))
+        return account, make_verified_client(account)
+
+    return _signed_in
