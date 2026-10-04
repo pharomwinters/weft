@@ -24,8 +24,11 @@ def _locked(user: User) -> tuple[User, int]:
     Every change that could remove an active admin locks all of them first, so
     two such changes cannot each count the other's admin as still there.
     """
-    admins = User.objects.select_for_update().filter(
-        is_instance_admin=True, is_active=True
+    # Ordered, so two concurrent changes take the locks in the same order.
+    admins = (
+        User.objects.select_for_update()
+        .filter(is_instance_admin=True, is_active=True)
+        .order_by("pk")
     )
     active_admins = len(admins)
     return User.objects.select_for_update().get(pk=user.pk), active_admins

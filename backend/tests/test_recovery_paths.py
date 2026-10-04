@@ -181,3 +181,40 @@ def test_reset_password_command_prints_working_url(member):
 def test_commands_fail_for_unknown_email(db, command):
     with pytest.raises(CommandError, match="nobody@example"):
         call_command(command, "nobody@example.com")
+
+
+def _half_logged_in(email) -> ApiClient:
+    client, r = _login(email, PASSWORD)
+    assert r.status_code == 200
+    return client
+
+
+def test_2fa_reset_kills_a_half_finished_login(admin, member):
+    """A stolen password must not be able to enrol a device after a recovery."""
+    user, _ = member
+    stale = _half_logged_in(user.email)
+    assert admin[1].post(f"/admin/users/{user.pk}/reset-2fa").status_code == 204
+    assert stale.get("/auth/session").json()["state"] == "anonymous"
+    r = stale.post("/auth/enrol/start")
+    assert r.status_code == 401 and r.json()["error"]["details"]["next"] == "login"
+    assert not TotpDevice.objects.filter(user=user).exists()
+
+
+def test_password_reset_kills_a_half_finished_login(admin, member, code_for):
+    user, _ = member
+    stale = _half_logged_in(user.email)
+    assert _redeem(_link(admin, user)).status_code == 204
+    r = stale.post("/auth/verify", {"code": code_for(user, 1)})
+    assert r.status_code == 401 and r.json()["error"]["code"] == "auth_required"
+
+
+def test_password_change_kills_a_half_finished_login(member, code_for):
+    user, client = member
+    stale = _half_logged_in(user.email)
+    r = client.post(
+        "/account/password",
+        {"current_password": PASSWORD, "new_password": NEW_PASSWORD},
+    )
+    assert r.status_code == 204
+    assert client.get("/auth/session").json()["state"] == "verified"
+    assert stale.get("/auth/session").json()["state"] == "anonymous"

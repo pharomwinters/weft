@@ -32,6 +32,9 @@ class User(AbstractBaseUser):
     must_change_password = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Raised whenever the user's sessions are ended. A half-finished login
+    # started under an older value is dead, though it has no UserSession row.
+    session_epoch = models.PositiveIntegerField(default=0)
 
     objects = UserManager()
 

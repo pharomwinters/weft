@@ -278,3 +278,31 @@ def test_invitation_to_deleted_workspace_is_invalid(owner, team):
     r = _accept(token)
     assert r.status_code == 404 and r.json()["error"]["code"] == "invalid_token"
     assert not User.objects.filter(email="new@example.com").exists()
+
+
+def test_invitation_dies_when_its_creator_leaves_the_workspace(owner, team, signed_in):
+    second, _ = signed_in("second@example.com")
+    services.add_member(team, second, Role.OWNER)
+    token = _token(
+        owner[1].post("/invitations", {"workspace_id": team.pk, "role": "owner"})
+    )
+    services.remove_member(team, owner[0])
+    assert ApiClient().get(f"/invitations/token/{token}").status_code == 404
+    r = _accept(token)
+    assert r.status_code == 404 and r.json()["error"]["code"] == "invalid_token"
+    assert not User.objects.filter(email="new@example.com").exists()
+
+
+@pytest.mark.parametrize("change", ["demoted", "deactivated"])
+def test_invitation_dies_with_its_creators_authority(admin, signed_in, change):
+    signed_in("other-admin@example.com", admin=True)
+    token = _token(admin[1].post("/invitations", {}))
+    creator = admin[0]
+    if change == "demoted":
+        creator.is_instance_admin = False
+    else:
+        creator.is_active = False
+    creator.save()
+    assert ApiClient().get(f"/invitations/token/{token}").status_code == 404
+    assert _accept(token).status_code == 404
+    assert not User.objects.filter(email="new@example.com").exists()

@@ -12,6 +12,7 @@ from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.sessions.backends.base import SessionBase
 from django.contrib.sessions.models import Session
+from django.db.models import F
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -49,6 +50,7 @@ def start_partial(request: SessionRequest, user: User) -> None:
         "user_id": user.pk,
         "started": timezone.now().timestamp(),
         "second_factor_ok": False,
+        "epoch": user.session_epoch,
     }
 
 
@@ -59,7 +61,18 @@ def partial_user(request: SessionRequest) -> User | None:
     age = timezone.now().timestamp() - state["started"]
     if age > PARTIAL_LIFETIME.total_seconds():
         return None
-    return User.objects.filter(pk=state["user_id"], is_active=True).first()
+    return User.objects.filter(
+        pk=state["user_id"], is_active=True, session_epoch=state.get("epoch")
+    ).first()
+
+
+def keep_partial(request: SessionRequest, user: User) -> None:
+    """Keep this partial session alive after end_sessions(user) raised the epoch."""
+    state = request.session[_KEY]
+    state["epoch"] = User.objects.values_list("session_epoch", flat=True).get(
+        pk=user.pk
+    )
+    request.session[_KEY] = state
 
 
 def mark_second_factor_ok(request: SessionRequest) -> None:
@@ -117,7 +130,12 @@ def end_current(request: SessionRequest) -> None:
 
 
 def end_sessions(user: User, *, except_key: str | None = None) -> None:
-    """End the user's verified sessions, optionally sparing one."""
+    """End the user's sessions, optionally sparing one verified session.
+
+    Verified sessions are deleted. Partial ones (password accepted, second
+    factor still due) are not listed anywhere, so the epoch is raised instead.
+    """
+    User.objects.filter(pk=user.pk).update(session_epoch=F("session_epoch") + 1)
     rows = UserSession.objects.filter(user=user)
     if except_key is not None:
         rows = rows.exclude(session_key=except_key)

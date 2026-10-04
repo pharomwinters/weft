@@ -109,9 +109,9 @@ def enrol_start(request: SessionRequest):
 @router.post("/enrol/confirm", auth=partial, response=EnrolConfirmOut)
 def enrol_confirm(request: SessionRequest, payload: CodeIn):
     user = _second_factor_user(request, enrolled=False)
-    if not totp.confirm_enrolment(user, payload.code):
+    codes = totp.confirm_with_recovery_codes(user, payload.code)
+    if codes is None:
         raise _bad_code(request, user)
-    codes = recovery.generate(user)
     record(events.TOTP_ENROLLED, request=request, actor=user, target=user)
     return {"recovery_codes": codes, **_second_factor_done(request, user)}
 
@@ -151,6 +151,7 @@ def forced_password_change(request: SessionRequest, payload: ForcedPasswordIn):
     user.save(update_fields=["password", "must_change_password"])
     record(events.PASSWORD_CHANGED, request=request, actor=user, target=user)
     sessions.end_sessions(user)
+    sessions.keep_partial(request, user)
     if sessions.promote_if_ready(request):
         throttle.record_success(request, user.email)
     return {"next": sessions.next_step(request)}

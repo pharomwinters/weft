@@ -87,9 +87,9 @@ def reenrol_start(request: SessionRequest, payload: CodeIn):
 def reenrol_confirm(request: SessionRequest, payload: CodeIn):
     user = request.auth
     _refuse_if_locked(request, user)
-    if not totp.confirm_enrolment(user, payload.code):
+    codes = totp.confirm_with_recovery_codes(user, payload.code)
+    if codes is None:
         throttle.record_failure(request, user.email)
         raise ApiError(401, "invalid_code", "That code is not valid.")
-    codes = recovery.generate(user)
     record(events.TOTP_ENROLLED, request=request, actor=user, target=user)
     return {"recovery_codes": codes}

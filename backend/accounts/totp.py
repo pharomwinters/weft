@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import transaction
 from django_otp.oath import TOTP
 
+from . import recovery
 from .models import RecoveryCode, TotpDevice, User
 
 STEP_SECONDS = 30
@@ -105,6 +106,17 @@ def confirm_enrolment(user: User, code: str) -> bool:
         device.confirmed = True
         device.save(update_fields=["confirmed"])
     return True
+
+
+def confirm_with_recovery_codes(user: User, code: str) -> list[str] | None:
+    """Confirm the pending device and issue its recovery codes, as one step.
+
+    None if the code is wrong. A device is never left confirmed without codes.
+    """
+    with transaction.atomic():
+        if not confirm_enrolment(user, code):
+            return None
+        return recovery.generate(user)
 
 
 def verify(user: User, code: str) -> bool:

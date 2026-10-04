@@ -10,6 +10,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q, QuerySet
 from django.http import HttpRequest
 from django.utils import timezone
+from permissions import actions
+from permissions.core import INSTANCE, can
 from workspaces import services as workspace_services
 from workspaces.models import Workspace
 
@@ -60,14 +62,31 @@ def create(
     return invitation, f"{settings.PUBLIC_URL}/invite/{token}"
 
 
+def _creator_may_still_invite(invitation: Invitation) -> bool:
+    """An invitation is only as good as its creator's present authority.
+
+    Removing an owner from a workspace, demoting an admin or deactivating
+    either one therefore kills the links they handed out.
+    """
+    creator = invitation.created_by
+    if creator is None:
+        return False
+    if invitation.workspace is None:
+        return can(creator, actions.INSTANCE_CREATE_INVITATION, INSTANCE)
+    return can(creator, actions.WORKSPACE_INVITE, invitation.workspace)
+
+
 def find(token: str) -> Invitation | None:
     """The pending invitation for a token; None for any dead or unknown one."""
-    return (
+    invitation = (
         pending()
         .filter(token_hash=hash_token(token))
-        .select_related("workspace")
+        .select_related("workspace", "created_by")
         .first()
     )
+    if invitation is None or not _creator_may_still_invite(invitation):
+        return None
+    return invitation
 
 
 def revoke(invitation: Invitation) -> None:
@@ -89,7 +108,7 @@ def accept(
             .select_for_update(of=("self",))
             .filter(token_hash=hash_token(token))
         ).first()
-        if invitation is None:
+        if invitation is None or not _creator_may_still_invite(invitation):
             return None
         email = clean_email(email)
         validate_new_password(password, User(email=email))
