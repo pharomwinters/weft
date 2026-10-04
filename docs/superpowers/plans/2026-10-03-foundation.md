@@ -14,7 +14,8 @@
 
 - Python is managed with uv (`uv.lock` committed); Node with pnpm (`pnpm-lock.yaml` committed). Lint and format with Ruff, type-check with ty. Never use pip, npm, mypy or black.
 - Minimum versions: Python 3.12, Django 5.2 LTS, Postgres 16, Node 22. React is pinned to 18.
-- All backend commands run from `backend/` as `uv run …`; all frontend commands from `frontend/` as `pnpm …`.
+- There is one `pyproject.toml`, at the repository root, holding the project definition, dependencies, and the Ruff and ty settings. Django code lives in `backend/`. All backend commands run from the repository root as `uv run …` (Django commands as `uv run python backend/manage.py …`); all frontend commands from `frontend/` as `pnpm …`.
+- The root `pyproject.toml` already exists with the maintainer's Ruff and ty settings. Keep its rule selection and options exactly as they are; Task 1 only adds to it and fixes the parts copied from another project.
 - Backend tests need Postgres: `docker compose -f compose.dev.yml up -d postgres` (created in Task 1).
 - Every API endpoint requires a verified session unless it is listed in `api/access.py` (Task 5). Adding to that list needs a reason in the commit message.
 - Endpoints call `permissions.can` / `permissions.require`; they never inspect roles or `is_instance_admin` directly.
@@ -42,10 +43,11 @@ compose.dev.yml               Postgres for local development and tests
 docker-compose.yml            Production stack: app + postgres
 .env.example
 LICENSE  README.md  .gitignore
+pyproject.toml  uv.lock        One Python project for the repository; Ruff, ty and pytest settings
 .github/workflows/ci.yml
 docker/Dockerfile  docker/entrypoint.sh
 backend/
-  pyproject.toml  uv.lock  manage.py
+  manage.py
   config/     env.py (config loading and validation), settings.py, settings_dev.py,
               settings_test.py, urls.py, asgi.py, middleware.py (security headers), spa.py
   accounts/   models.py, passwords.py, net.py, throttle.py, sessions.py, totp.py,
@@ -78,7 +80,8 @@ scripts/e2e-server.sh
 ### Task 1: Backend skeleton, configuration and error shape
 
 **Files:**
-- Create: `backend/pyproject.toml`, `backend/manage.py`, `backend/config/{__init__,env,settings,settings_dev,settings_test,urls,asgi,middleware}.py`, `backend/api/{__init__,api,errors}.py`, `backend/tests/{__init__,conftest,test_config,test_errors,test_platform_schema}.py`, `compose.dev.yml`, `.env.example`, `.gitignore`, `LICENSE` (AGPL-3.0 text)
+- Modify: `pyproject.toml` (exists at the repository root)
+- Create: `uv.lock`, `backend/manage.py`, `backend/config/{__init__,env,settings,settings_dev,settings_test,urls,asgi,middleware}.py`, `backend/api/{__init__,api,errors}.py`, `backend/tests/{__init__,conftest,test_config,test_errors,test_platform_schema}.py`, `compose.dev.yml`, `.env.example`, `.gitignore`, `LICENSE` (AGPL-3.0 text)
 
 **Interfaces:**
 - Produces:
@@ -88,12 +91,12 @@ scripts/e2e-server.sh
   - `api.api.api: NinjaAPI`, mounted at `/api/v1/`, created with `docs_url=None, openapi_url=None`
   - `api.errors.ApiError(status: int, code: str, message: str, details: dict | None = None)`
   - `GET /api/v1/health` → `{"status": "ok"}`
-  - Fixture `api_client` in `tests/conftest.py`: object with `get/post/patch/put/delete(path, json=None)` that prefixes `/api/v1`, sends JSON, and returns Django's test response
+  - Fixture `api_client` in `backend/tests/conftest.py`: object with `get/post/patch/put/delete(path, json=None)` that prefixes `/api/v1`, sends JSON, and returns Django's test response
 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-# tests/test_config.py
+# backend/tests/test_config.py
 VALID = {"DATABASE_URL": "postgres://u:p@h/db", "SECRET_KEY": "k" * 50,
          "TOTP_ENCRYPTION_KEY": Fernet.generate_key().decode(),
          "PUBLIC_URL": "https://grid.example.com"}
@@ -128,7 +131,7 @@ def test_empty_initial_admin_password_is_none():
 def test_production_settings_hard_code_debug_false(monkeypatch):
     monkeypatch.setenv("DJANGO_DEBUG", "1")   # import config.settings fresh; assert DEBUG is False
 
-# tests/test_errors.py
+# backend/tests/test_errors.py
 def test_health(api_client):
     assert api_client.get("/health").json() == {"status": "ok"}
 def test_unknown_api_route_is_json_404(api_client):
@@ -144,7 +147,7 @@ def test_security_headers(api_client):
     assert r["X-Frame-Options"] == "DENY" and r["Referrer-Policy"] == "no-referrer"
     assert "default-src 'self'" in r["Content-Security-Policy"]
 
-# tests/test_platform_schema.py
+# backend/tests/test_platform_schema.py
 def test_django_tables_live_in_platform_schema(db):
     # query information_schema.tables for 'django_migrations'; assert table_schema == 'platform'
 ```
@@ -152,7 +155,7 @@ def test_django_tables_live_in_platform_schema(db):
 - [ ] **Step 2: Run to verify they fail** — `uv run pytest -q` → collection errors (modules missing).
 
 - [ ] **Step 3: Implement**
-  - `pyproject.toml`: dependencies from Tech Stack; dev group pytest, pytest-django, time-machine, ruff, ty. `[tool.pytest.ini_options] DJANGO_SETTINGS_MODULE = "config.settings_test"`.
+  - Root `pyproject.toml`: add a `[project]` table (`requires-python = ">=3.12"`, dependencies from Tech Stack) and a dev dependency group (pytest, pytest-django, time-machine, ruff, ty). Add `[tool.pytest.ini_options]` with `DJANGO_SETTINGS_MODULE = "config.settings_test"`, `pythonpath = ["backend"]`, `testpaths = ["backend/tests"]`. Set `[tool.ty.environment] root = ["backend"]`. Leave `select`, `ignore`, `line-length`, the format `exclude`, `python-version` and `error-on-warning` unchanged. Rewrite the comments that describe another project (`reindex.py`, `vaultlib`, the vault, hit counts) so they describe this one; keep the reasoning for pinning `select` and ignoring `E501`.
   - `compose.dev.yml`: `postgres:16`, port 5432, user/password/db all `app`.
   - `.env.example`: all variables from spec section 8; required ones set to obvious placeholders (`SECRET_KEY=change-me`, etc.); a comment gives the command that generates a Fernet key.
   - `settings.py`: calls `load_config(os.environ)`; `DEBUG = False` literally; `DATABASES` from `database_url` with `OPTIONS={"options": "-c search_path=platform"}`; `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` from `public_url`; `SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE`/HSTS on when `public_url` is https; Argon2 first in `PASSWORD_HASHERS`; logs a warning when `public_url` is http and the host is not `localhost`/`127.0.0.1`.
@@ -203,7 +206,7 @@ def test_production_hasher_is_argon2():
     assert prod_settings.PASSWORD_HASHERS[0].endswith("Argon2PasswordHasher")
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_users.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_users.py -q`
 - [ ] **Step 3: Implement** the model, manager and `validate_new_password`. Uniqueness is a `UniqueConstraint(Lower("email"))`. Validators: minimum length 12, Django's `CommonPasswordValidator`, `UserAttributeSimilarityValidator` on `email`, and the length ceiling checked first.
 - [ ] **Step 4: Run to verify they pass**
 - [ ] **Step 5: Commit** — `git commit -m "feat: user model and password rules"`
@@ -239,7 +242,7 @@ def test_events_are_append_only(db):
 def test_event_survives_actor_deletion(db, make_user):   # actor becomes None, row remains
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_audit.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_audit.py -q`
 - [ ] **Step 3: Implement.** `target_type` is the model's lower-case class name.
 - [ ] **Step 4: Run to verify they pass**
 - [ ] **Step 5: Commit** — `git commit -m "feat: audit log"`
@@ -295,7 +298,7 @@ def test_rotating_forwarded_header_does_not_dodge_ip_block(db, rf, settings):   
 def test_lockout_recorded_once_in_audit(db, req):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_throttle.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_throttle.py -q`
 - [ ] **Step 3: Implement**
   - `client_ip`: with a count of `n > 0`, take the `n`-th entry from the right of `X-Forwarded-For`; anything unparseable falls back to `REMOTE_ADDR`.
   - Per-account lockout uses django-axes: `AXES_FAILURE_LIMIT = 5`, `AXES_COOLOFF_TIME = timedelta(minutes=15)`, `AXES_LOCKOUT_PARAMETERS = ["username"]`, `AXES_CLIENT_IP_CALLABLE = "accounts.net.client_ip"`, axes backend first in `AUTHENTICATION_BACKENDS`, axes middleware installed. `throttle` is the only module that imports axes; it normalises the email before every call and drives axes through its handler so that code-step failures (Task 6) count too.
@@ -331,7 +334,7 @@ def test_lockout_recorded_once_in_audit(db, req):
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-# tests/test_login.py
+# backend/tests/test_login.py
 def test_login_success_starts_partial_session(api_client, make_user):
     make_user("a@example.com")
     r = api_client.post("/auth/login", {"email": "A@Example.com ", "password": "correct horse battery"})
@@ -352,7 +355,7 @@ def test_logout_flushes_session(partial_client):
 def test_post_without_csrf_token_is_403(make_user):   # Client(enforce_csrf_checks=True)
 def test_login_success_and_failure_are_audited(api_client, make_user):
 
-# tests/test_deny_by_default.py
+# backend/tests/test_deny_by_default.py
 def all_routes():   # every (METHOD, path) from api.get_openapi_schema()["paths"], path params filled with "1"
 @pytest.mark.parametrize("method,path", all_routes())
 def test_unlisted_route_refuses_anonymous(api_client, method, path):
@@ -367,7 +370,7 @@ def test_access_lists_contain_no_stale_entries():      # every listed pair exist
 def test_health_is_listed_anonymous():
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_login.py tests/test_deny_by_default.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_login.py backend/tests/test_deny_by_default.py -q`
 - [ ] **Step 3: Implement.** Login checks `is_blocked` first, then authenticates; on an unknown email it hashes a dummy password so timing is comparable. The partial state lives in the session under one key holding `user_id`, `started` and `second_factor_ok`; Django's `login()` is called only by `promote_if_ready`.
 - [ ] **Step 4: Run to verify they pass**
 - [ ] **Step 5: Commit** — `git commit -m "feat: session states, login, deny-by-default route guard"`
@@ -400,7 +403,7 @@ def test_health_is_listed_anonymous():
     - `POST /auth/enrol/confirm` `{code}` → `{"recovery_codes": [10 strings], "next": "change_password"|null}`
     - `POST /auth/verify` `{code}` → `{"next": "change_password"|null}`; 401 `invalid_code`; 429 `locked`
     - `POST /auth/recovery` `{code}` → same as verify
-  - Fixtures: `code_for(user) -> str` (current valid code), `enrolled(user) -> User` (confirmed device, created directly), `verified_client(user) -> api_client` (through the real login and verify endpoints). The tests below also name `enrolled_user`, `partial_enrolled_client` and `code_for_pending`; define those in `tests/test_totp.py` from these three.
+  - Fixtures: `code_for(user) -> str` (current valid code), `enrolled(user) -> User` (confirmed device, created directly), `verified_client(user) -> api_client` (through the real login and verify endpoints). The tests below also name `enrolled_user`, `partial_enrolled_client` and `code_for_pending`; define those in `backend/tests/test_totp.py` from these three.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -435,9 +438,9 @@ def test_verified_session_of_deactivated_user_is_refused(verified_client, user):
     assert verified_client.get("/auth/session").json()["state"] == "anonymous"
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_totp.py -q`
-- [ ] **Step 3: Implement.** Use `django_otp.oath.TOTP` (30-second step, 6 digits) for the algorithm only; our own models hold the state. Secrets are 20 random bytes, encrypted with Fernet using the configured key. Codes are normalised by stripping spaces and dashes before any check. Recovery codes are hashed with SHA-256 after normalising to lower case without dashes (80 bits of entropy makes a slow hash unnecessary). `throttle.record_success` is called only when the session becomes verified. Extend `tests/test_deny_by_default.py` coverage by adding the four endpoints to `PARTIAL`.
-- [ ] **Step 4: Run to verify they pass** — also rerun `tests/test_login.py tests/test_deny_by_default.py`.
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_totp.py -q`
+- [ ] **Step 3: Implement.** Use `django_otp.oath.TOTP` (30-second step, 6 digits) for the algorithm only; our own models hold the state. Secrets are 20 random bytes, encrypted with Fernet using the configured key. Codes are normalised by stripping spaces and dashes before any check. Recovery codes are hashed with SHA-256 after normalising to lower case without dashes (80 bits of entropy makes a slow hash unnecessary). `throttle.record_success` is called only when the session becomes verified. Extend `backend/tests/test_deny_by_default.py` coverage by adding the four endpoints to `PARTIAL`.
+- [ ] **Step 4: Run to verify they pass** — also rerun `backend/tests/test_login.py backend/tests/test_deny_by_default.py`.
 - [ ] **Step 5: Commit** — `git commit -m "feat: enforced TOTP with recovery codes"`
 
 ---
@@ -479,9 +482,9 @@ def test_old_device_keeps_working_until_reenrol_confirmed(...):
 def test_last_seen_updates_at_most_once_a_minute(...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_account.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_account.py -q`
 - [ ] **Step 3: Implement.** Every password change records `PASSWORD_CHANGED` and calls `end_sessions(user, except_key=current)`. Re-enrolment failures count toward the account lockout.
-- [ ] **Step 4: Run to verify they pass** — plus `tests/test_deny_by_default.py`.
+- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
 - [ ] **Step 5: Commit** — `git commit -m "feat: forced password change and account settings"`
 
 ---
@@ -527,9 +530,9 @@ def test_wrong_tokens_count_toward_ip_block(...):             # 20 bad tokens �
 def test_two_simultaneous_setups_create_one_admin(transactional_db, ...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_setup.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_setup.py -q`
 - [ ] **Step 3: Implement.** `SetupToken` holds a single row. Creating the admin locks that row inside a transaction and deletes it on success, which serialises concurrent attempts.
-- [ ] **Step 4: Run to verify they pass** — plus `tests/test_deny_by_default.py`.
+- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
 - [ ] **Step 5: Commit** — `git commit -m "feat: first-run setup by env admin or setup token"`
 
 ---
@@ -558,7 +561,7 @@ def test_two_simultaneous_setups_create_one_admin(transactional_db, ...):
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-# tests/test_permissions.py — the spec's table, exhaustively
+# backend/tests/test_permissions.py — the spec's table, exhaustively
 EXPECTED = {  # action → roles allowed; "admin" is an instance admin with no membership
     WORKSPACE_VIEW: {"admin", "owner", "editor", "viewer"},
     WORKSPACE_RENAME: {"admin", "owner"}, WORKSPACE_MANAGE_MEMBERS: {"admin", "owner"},
@@ -575,7 +578,7 @@ def test_any_active_user_may_create_a_workspace(...): def test_inactive_user_can
 def test_unknown_action_raises_value_error(...):
 def test_every_action_constant_is_covered_by_this_file():     # guards against an untested new action
 
-# tests/test_workspaces.py
+# backend/tests/test_workspaces.py
 def test_creator_becomes_owner(verified_client): def test_name_trimmed_and_blank_rejected(...):
 def test_list_shows_only_my_workspaces_admin_sees_all(...):
 def test_outsider_gets_404_not_403(...): def test_viewer_rename_is_403(...):
@@ -591,9 +594,9 @@ def test_admin_who_is_not_a_member_can_manage_and_sees_role_null(...):
 def test_membership_and_workspace_changes_are_audited(...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_permissions.py tests/test_workspaces.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_permissions.py backend/tests/test_workspaces.py -q`
 - [ ] **Step 3: Implement.** Owner-count checks run inside a transaction that locks the workspace row with `select_for_update`. A soft-deleted workspace is invisible to every action except `WORKSPACE_RESTORE`.
-- [ ] **Step 4: Run to verify they pass** — plus `tests/test_deny_by_default.py`.
+- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
 - [ ] **Step 5: Commit** — `git commit -m "feat: permissions, workspaces and memberships"`
 
 ---
@@ -635,9 +638,9 @@ def test_bad_tokens_count_toward_ip_block(...):
 def test_invitation_to_deleted_workspace_is_invalid(...):
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_invitations.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_invitations.py -q`
 - [ ] **Step 3: Implement.** Acceptance locks the invitation row, so a token is consumed exactly once.
-- [ ] **Step 4: Run to verify they pass** — plus `tests/test_deny_by_default.py`.
+- [ ] **Step 4: Run to verify they pass** — plus `backend/tests/test_deny_by_default.py`.
 - [ ] **Step 5: Commit** — `git commit -m "feat: invitations"`
 
 ---
@@ -665,14 +668,14 @@ def test_invitation_to_deleted_workspace_is_invalid(...):
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-# tests/test_admin_users.py
+# backend/tests/test_admin_users.py
 def test_non_admin_gets_403_on_every_admin_route(verified_client, ...):
 def test_deactivate_ends_sessions_and_blocks_login(...):
 def test_cannot_deactivate_or_demote_last_active_admin(...):  # 409 last_admin, including oneself
 def test_inactive_admin_does_not_count_toward_last_admin(...):
 def test_reactivate(...): def test_admin_flag_change_is_audited(...):
 
-# tests/test_recovery_paths.py
+# backend/tests/test_recovery_paths.py
 def test_reset_link_sets_password_but_second_factor_still_required(...):
     # redeem → login with new password → next "verify"
 def test_reset_link_single_use_and_expires_after_24_hours(..., time_machine):
@@ -683,7 +686,7 @@ def test_reset_2fa_forces_reenrolment_and_ends_sessions(...):   # next login →
 def test_reset_2fa_command(...): def test_reset_password_command_prints_working_url(...):
 def test_commands_fail_for_unknown_email(...):
 
-# tests/test_admin_audit.py
+# backend/tests/test_admin_audit.py
 def test_filter_by_event_and_actor(...): def test_pagination_newest_first(...):
 def test_limit_capped_at_200(...):
 def test_no_secret_material_in_any_audit_row_after_full_flow(...):
@@ -691,7 +694,7 @@ def test_no_secret_material_in_any_audit_row_after_full_flow(...):
     # used in the flow appears in json.dumps of all AuditEvent.details
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_admin_users.py tests/test_recovery_paths.py tests/test_admin_audit.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_admin_users.py backend/tests/test_recovery_paths.py backend/tests/test_admin_audit.py -q`
 - [ ] **Step 3: Implement.** Last-admin checks lock the admin rows in a transaction, as the last-owner check does.
 - [ ] **Step 4: Run to verify they pass** — then the whole suite: `uv run pytest -q`.
 - [ ] **Step 5: Commit** — `git commit -m "feat: admin user management, recovery paths, audit view"`
@@ -706,7 +709,7 @@ def test_no_secret_material_in_any_audit_row_after_full_flow(...):
 **Interfaces:**
 - Consumes: the API from Tasks 1–11
 - Produces:
-  - Scripts: `pnpm dev` (Vite, proxying `/api` to `localhost:8000`), `pnpm build`, `pnpm test` (Vitest), `pnpm lint`, `pnpm typecheck`, `pnpm gen:api` (exports the schema with `uv run --project ../backend python ../backend/manage.py export_openapi_schema --api api.api.api` into `openapi.json`, then runs `openapi-typescript` to `src/api/schema.d.ts`)
+  - Scripts: `pnpm dev` (Vite, proxying `/api` to `localhost:8000`), `pnpm build`, `pnpm test` (Vitest), `pnpm lint`, `pnpm typecheck`, `pnpm gen:api` (exports the schema with `uv run --project .. python ../backend/manage.py export_openapi_schema --api api.api.api` into `openapi.json`, then runs `openapi-typescript` to `src/api/schema.d.ts`)
   - `api/client.ts`: `request<T>(method, path, body?) -> Promise<T>`; `class ApiFailure extends Error { status: number; code: string; details: Record<string, unknown> }`
   - `auth/SessionProvider.tsx`: `useSession() -> { state: "loading"|"anonymous"|"partial"|"verified", next: string|null, user: User|null, refresh(): Promise<void> }`
   - `auth/guards.tsx`: `<RequireVerified>`, `<RequirePartial step>`, `<RequireAdmin>`; `pathForStep(next: string|null) -> string` mapping `login→/login`, `verify→/verify`, `enrol→/enrol`, `change_password→/change-password`, `null→/`
@@ -820,7 +823,7 @@ it("a 401 from any request refreshes the session and redirects by details.next")
   - Setting `FRONTEND_DIST: Path` (default `/app/frontend_dist`, overridable in tests)
   - Any path not under `/api/` or matching a built asset returns `index.html`
   - `docker compose up` starts `postgres` (named volume, healthcheck) and `app` (port 8000, healthcheck on `/api/v1/health`, depends on a healthy postgres)
-  - `entrypoint.sh`: `python manage.py bootstrap` then `uvicorn config.asgi:application --host 0.0.0.0 --port 8000`
+  - `entrypoint.sh`: from `backend/`, `python manage.py bootstrap` then `uvicorn config.asgi:application --host 0.0.0.0 --port 8000`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -831,7 +834,7 @@ def test_index_is_not_cached_but_hashed_assets_are(...):       # Cache-Control: 
 def test_missing_dist_gives_clear_503(client, settings):       # not a stack trace
 ```
 
-- [ ] **Step 2: Run to verify they fail** — `uv run pytest tests/test_spa.py -q`
+- [ ] **Step 2: Run to verify they fail** — `uv run pytest backend/tests/test_spa.py -q`
 - [ ] **Step 3: Implement.** Multi-stage Dockerfile: a Node stage runs `pnpm install --frozen-lockfile && pnpm build`; the final stage uses a uv base image, `uv sync --frozen --no-dev`, copies the built frontend, runs as a non-root user, and sets `DJANGO_SETTINGS_MODULE=config.settings`. README covers: what the project is, quick start (`cp .env.example .env`, generate the three secrets, `docker compose up`), both first-run routes and where the setup token appears (`docker compose logs app`), the `TRUSTED_PROXY_COUNT` setting with a Tailscale Funnel example, the three recovery paths and their commands, and local development.
 - [ ] **Step 4: Verify**
   - `uv run pytest -q` → pass
