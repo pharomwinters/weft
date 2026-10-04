@@ -93,6 +93,8 @@ def test_access_lists_are_exactly_as_specified():
         ("GET", "/health"),
         ("GET", "/auth/session"),
         ("POST", "/auth/login"),
+        ("GET", "/setup/status"),
+        ("POST", "/setup/admin"),
     } == ANONYMOUS
     assert {
         ("POST", "/auth/logout"),

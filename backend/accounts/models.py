@@ -116,3 +116,12 @@ class UserSession(models.Model):
     last_seen = models.DateTimeField()
 
     objects = models.Manager["UserSession"]()
+
+
+class SetupToken(models.Model):
+    """The hash of the current first-run setup token. At most one row."""
+
+    token_hash = models.CharField(max_length=64)
+    created = models.DateTimeField(auto_now_add=True)
+
+    objects = models.Manager["SetupToken"]()

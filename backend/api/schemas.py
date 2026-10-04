@@ -4,6 +4,9 @@ from typing import Literal
 from accounts.passwords import MAX_EMAIL_LENGTH, MAX_PASSWORD_LENGTH
 from ninja import Field, Schema
 
+# Tokens are 43 characters; anything much longer is not one.
+MAX_TOKEN_LENGTH = 128
+
 
 class LoginIn(Schema):
     email: str = Field(max_length=MAX_EMAIL_LENGTH)
@@ -64,3 +67,13 @@ class SessionItemOut(Schema):
 
 class RecoveryCodesOut(Schema):
     recovery_codes: list[str]
+
+
+class SetupStatusOut(Schema):
+    needs_setup: bool
+
+
+class SetupIn(Schema):
+    token: str = Field(max_length=MAX_TOKEN_LENGTH)
+    email: str = Field(max_length=MAX_EMAIL_LENGTH)
+    password: str = Field(max_length=MAX_PASSWORD_LENGTH)

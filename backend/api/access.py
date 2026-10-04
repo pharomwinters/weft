@@ -9,6 +9,9 @@ ANONYMOUS: set[tuple[str, str]] = {
     ("GET", "/health"),  # liveness probe
     ("GET", "/auth/session"),  # the SPA asks who it is before anything else
     ("POST", "/auth/login"),  # the password step
+    # First-run setup happens before any account exists; both are 404 afterwards.
+    ("GET", "/setup/status"),
+    ("POST", "/setup/admin"),
 }
 
 PARTIAL: set[tuple[str, str]] = {
