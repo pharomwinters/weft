@@ -24,6 +24,23 @@ def validated(request, payload: Named):
     return {"name": payload.name}
 
 
+@test_api.get("/_test/http-error")
+def raise_http_error(request):
+    from ninja.errors import HttpError
+
+    raise HttpError(418, "teapot")
+
+
+@test_api.get("/_test/boom")
+def boom(request):
+    raise RuntimeError("secret detail")
+
+
+@test_api.get("/_test/denied", auth=lambda request: None)
+def denied(request):
+    return {}
+
+
 # The real URLconf with the test API mounted ahead of it.
 urlpatterns = [path("api/v1/", test_api.urls), *config_urls.urlpatterns]
 
@@ -56,3 +73,40 @@ def test_security_headers(api_client):
     r = api_client.get("/health")
     assert r["X-Frame-Options"] == "DENY" and r["Referrer-Policy"] == "no-referrer"
     assert "default-src 'self'" in r["Content-Security-Policy"]
+
+
+def test_post_to_unknown_api_route_is_json_404_even_with_csrf_checks():
+    from django.test import Client
+
+    r = Client(enforce_csrf_checks=True).post("/api/v1/nope")
+    assert r.status_code == 404
+    assert r.json()["error"]["code"] == "not_found"
+
+
+def test_wrong_method_is_json_405(api_client):
+    r = api_client.post("/health")
+    assert r.status_code == 405
+    assert r.json()["error"]["code"] == "method_not_allowed"
+    assert "GET" in r["Allow"]
+
+
+@pytest.mark.urls(__name__)
+def test_ninja_http_error_is_shaped(api_client):
+    r = api_client.get("/_test/http-error")
+    assert r.status_code == 418
+    assert r.json() == {"error": {"code": "error", "message": "teapot", "details": {}}}
+
+
+@pytest.mark.urls(__name__)
+def test_ninja_authentication_error_is_shaped(api_client):
+    r = api_client.get("/_test/denied")
+    assert r.status_code == 401
+    assert r.json()["error"]["code"] == "auth_required"
+
+
+@pytest.mark.urls(__name__)
+def test_unhandled_exception_is_500_internal_without_detail(api_client):
+    r = api_client.get("/_test/boom")
+    assert r.status_code == 500
+    assert r.json()["error"]["code"] == "internal"
+    assert "secret detail" not in r.content.decode()

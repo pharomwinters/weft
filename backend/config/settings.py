@@ -23,6 +23,10 @@ ALLOWED_HOSTS = [_public.hostname]
 CSRF_TRUSTED_ORIGINS = [f"{_public.scheme}://{_public.netloc}"]
 SESSION_COOKIE_SECURE = _public_https
 CSRF_COOKIE_SECURE = _public_https
+SESSION_COOKIE_AGE = 14 * 24 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
 if _public_https:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
@@ -56,6 +60,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "axes.middleware.AxesMiddleware",
+    "config.middleware.ApiMethodNotAllowedMiddleware",
     "config.middleware.SecurityHeadersMiddleware",
 ]
 

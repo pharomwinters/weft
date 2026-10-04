@@ -1,3 +1,5 @@
+from django.http import JsonResponse
+
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; frame-ancestors 'none'"
@@ -13,3 +15,30 @@ class SecurityHeadersMiddleware:
         response["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
         response["Referrer-Policy"] = "no-referrer"
         return response
+
+
+class ApiMethodNotAllowedMiddleware:
+    """Gives Ninja's bare 405 the API error shape.
+
+    Ninja answers a wrong method from the path view, outside its exception
+    handlers, so the shape is applied to the response instead.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if response.status_code != 405 or not request.path.startswith("/api/"):
+            return response
+        body = {
+            "error": {
+                "code": "method_not_allowed",
+                "message": "Method not allowed.",
+                "details": {},
+            }
+        }
+        shaped = JsonResponse(body, status=405)
+        if "Allow" in response:
+            shaped["Allow"] = response["Allow"]
+        return shaped

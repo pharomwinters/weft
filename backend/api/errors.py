@@ -1,8 +1,20 @@
+import logging
 from typing import Any
 
 from django.http import Http404, HttpRequest, HttpResponse
 from ninja import NinjaAPI
-from ninja.errors import ValidationError
+from ninja.errors import AuthenticationError, HttpError, ValidationError
+
+logger = logging.getLogger(__name__)
+
+_HTTP_ERROR_CODES = {
+    400: "validation",
+    401: "auth_required",
+    403: "forbidden",
+    404: "not_found",
+    405: "method_not_allowed",
+    429: "rate_limited",
+}
 
 
 class ApiError(Exception):
@@ -64,3 +76,28 @@ def register_error_handlers(api: NinjaAPI) -> None:
     @api.exception_handler(Http404)
     def handle_not_found(request: HttpRequest, exc: Http404) -> HttpResponse:
         return _error_response(api, request, 404, "not_found", "Not found.", {})
+
+    @api.exception_handler(HttpError)
+    def handle_http_error(request: HttpRequest, exc: HttpError) -> HttpResponse:
+        code = _HTTP_ERROR_CODES.get(exc.status_code, "error")
+        return _error_response(api, request, exc.status_code, code, str(exc), {})
+
+    @api.exception_handler(AuthenticationError)
+    def handle_authentication_error(
+        request: HttpRequest, exc: AuthenticationError
+    ) -> HttpResponse:
+        return _error_response(
+            api,
+            request,
+            401,
+            "auth_required",
+            "Authentication is required.",
+            {"session": "anonymous", "next": "login"},
+        )
+
+    @api.exception_handler(Exception)
+    def handle_unexpected(request: HttpRequest, exc: Exception) -> HttpResponse:
+        logger.exception("Unhandled error in the API", exc_info=exc)
+        return _error_response(
+            api, request, 500, "internal", "Something went wrong.", {}
+        )

@@ -66,3 +66,14 @@ def make_user(db):
 @pytest.fixture
 def req(rf):
     return rf.get("/", REMOTE_ADDR="203.0.113.9")
+
+
+@pytest.fixture
+def partial_client(api_client, make_user) -> ApiClient:
+    """An api_client that has passed the password step (user u@example.com)."""
+    make_user()
+    r = api_client.post(
+        "/auth/login", {"email": "u@example.com", "password": "correct horse battery"}
+    )
+    assert r.status_code == 200
+    return api_client
