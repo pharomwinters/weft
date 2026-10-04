@@ -8,7 +8,7 @@ import EnrolPage from "./EnrolPage";
 import { click, location, renderPage, type } from "./testing";
 
 const SECRET = "JBSWY3DPEHPK3PXP";
-const URI = `otpauth://totp/Untitled:u%40example.com?secret=${SECRET}&issuer=Untitled`;
+const URI = `otpauth://totp/Weft:u%40example.com?secret=${SECRET}&issuer=Weft`;
 const CODES = Array.from({ length: 10 }, (_, i) => `aaaa-bbbb-cccc-000${i}`);
 
 function setup(confirm?: Reply) {

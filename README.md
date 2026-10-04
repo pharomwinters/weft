@@ -1,8 +1,9 @@
-# Untitled
+# Weft
+
+*Where your data comes together.*
 
 A free, open-source, self-hosted alternative to Grist, Baserow and NocoDB: a
-spreadsheet-style interface over relational data in Postgres. (The product has
-no name yet; "Untitled" is a placeholder.)
+spreadsheet-style interface over relational data in Postgres.
 
 It is built to be **safe on the open internet from the moment it starts**:
 every account must use two-factor authentication, there is no default
